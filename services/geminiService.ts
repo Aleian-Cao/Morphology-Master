@@ -162,23 +162,78 @@ export const generateRemediation = async (root: string, missedQuestions: string[
 };
 
 export const generateTierAssessment = async (tierId: number, roots: string[]): Promise<DrillQuestion[]> => {
-    // Existing logic, just ensure model is correct
-     try {
+  try {
     const sampledRoots = roots.sort(() => 0.5 - Math.random()).slice(0, 5);
-    const prompt = `Create a challenge assessment for Tier ${tierId} covering roots: ${sampledRoots.join(', ')}. 10 Questions. JSON Output.`;
+    
+    const prompt = `
+      Create a challenge assessment for English Morphology Tier ${tierId}.
+      Focus on these roots/affixes: ${sampledRoots.join(', ')}.
+      Generate 10 challenging multiple-choice questions.
+      
+      JSON Schema:
+      {
+        questions: [
+          {
+            question: string,
+            options: string[], // 4 options
+            correctAnswer: string,
+            explanation: string
+          }
+        ]
+      }
+    `;
+
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
-      config: { responseMimeType: "application/json" }
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            questions: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  question: { type: Type.STRING },
+                  options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  correctAnswer: { type: Type.STRING },
+                  explanation: { type: Type.STRING }
+                },
+                required: ["question", "options", "correctAnswer", "explanation"]
+              }
+            }
+          }
+        }
+      }
     });
-    return JSON.parse(getText(response)).questions || [];
-  } catch (error) { return []; }
+    
+    const jsonStr = getText(response);
+    const parsed = JSON.parse(jsonStr);
+    return parsed.questions || [];
+
+  } catch (error) {
+    console.error("Assessment Gen Error", error);
+    return [];
+  }
 };
 
-export const evaluateAssessment = async (tierId: number, score: number, total: number, missedConcepts: string[]): Promise<string> => {
+export const evaluateAssessment = async (tierId: number, score: number, total: number, missedConcepts: string[], timeTakenSeconds: number): Promise<string> => {
      try {
-        const prompt = `Tier ${tierId} Exam Result: ${score}/${total}. Missed: ${missedConcepts.join(', ')}. Give short feedback.`;
+        const prompt = `
+          Tier ${tierId} Exam Result:
+          Score: ${score}/${total}.
+          Time Taken: ${timeTakenSeconds} seconds.
+          Missed Concepts: ${missedConcepts.join(', ')}.
+          
+          Task: Give concise, constructive feedback.
+          CRITICAL:
+          1. If Time Taken is under 30 seconds and score is low, scold them for guessing wildly (random picking).
+          2. If Time Taken is under 30 seconds and score is high, praise their speed.
+          3. Format with bolding (**text**) for emphasis.
+        `;
         const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
         return getText(response);
-    } catch (e) { return "Done."; }
+    } catch (e) { return "Assessment complete."; }
 };
