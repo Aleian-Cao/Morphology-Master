@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { DrillQuestion, Lesson, PartType, RemediationPlan, WordPart } from '../types';
 
-const apiKey = process.env.API_KEY || '';
+const apiKey = process.env.VITE_GEMINI_API_KEY || '';
 const ai = new GoogleGenAI({ apiKey });
 
 const getText = (response: any): string => {
