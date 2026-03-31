@@ -141,7 +141,7 @@ export const MorphologyAnalyzer: React.FC<MorphologyAnalyzerProps> = ({ onBack }
       <div className="mb-6">
         <h3 className="font-bold text-stone-500 text-sm uppercase tracking-wider mb-3">Morphology Breakdown</h3>
         <div className="space-y-3">
-          {analysis.parts.map((part, idx) => (
+          {analysis.parts?.map((part, idx) => (
             <div key={idx} className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 p-3 bg-stone-50 rounded-lg border border-stone-100">
               <span className={`text-xs font-bold px-2 py-1 rounded ${
                 part.type === 'PREFIX' ? 'bg-blue-100 text-blue-800' :
@@ -162,7 +162,7 @@ export const MorphologyAnalyzer: React.FC<MorphologyAnalyzerProps> = ({ onBack }
         <div>
           <h3 className="font-bold text-stone-500 text-sm uppercase tracking-wider mb-3">Synonyms</h3>
           <div className="flex flex-wrap gap-2">
-            {analysis.synonyms.map((syn, idx) => (
+            {analysis.synonyms?.map((syn, idx) => (
               <span key={idx} className="bg-stone-100 text-stone-700 px-3 py-1 rounded-full text-sm">
                 {syn}
               </span>
@@ -172,7 +172,7 @@ export const MorphologyAnalyzer: React.FC<MorphologyAnalyzerProps> = ({ onBack }
         <div>
           <h3 className="font-bold text-stone-500 text-sm uppercase tracking-wider mb-3">Morphological Relatives</h3>
           <div className="flex flex-wrap gap-2">
-            {analysis.morphologicalRelatives.map((rel, idx) => (
+            {analysis.morphologicalRelatives?.map((rel, idx) => (
               <span key={idx} className="bg-orange-50 text-orange-800 border border-orange-100 px-3 py-1 rounded-full text-sm">
                 {rel}
               </span>

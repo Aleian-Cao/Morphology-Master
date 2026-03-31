@@ -28,7 +28,7 @@ export const WordTree: React.FC<WordTreeProps> = ({ root, derivatives, onNodeCli
 
     const data: TreeNode = {
       name: root,
-      children: derivatives.map(d => ({ name: d }))
+      children: derivatives?.map(d => ({ name: d })) || []
     };
 
     const svg = d3.select(svgRef.current)

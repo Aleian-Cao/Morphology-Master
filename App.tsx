@@ -7,10 +7,13 @@ import { WordGarden } from './components/WordGarden';
 import { LoginScreen } from './components/LoginScreen';
 import { TierAssessment } from './components/TierAssessment';
 import { MorphologyAnalyzer } from './components/MorphologyAnalyzer';
+import { UpgradePage } from './components/UpgradePage';
+import { AdminPage } from './components/AdminPage';
 import { auth, db } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { INITIAL_USER_PROGRESS } from './constants';
+import { AppConfig } from './types';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -18,6 +21,27 @@ const App: React.FC = () => {
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
   const [activeAssessment, setActiveAssessment] = useState<{tierId: number, roots: string[]} | null>(null);
   const [loading, setLoading] = useState(true);
+  const [appConfig, setAppConfig] = useState<AppConfig>({
+    baseFeatures: ['tier_assessments', 'word_garden'],
+    proFeatures: ['morphology_analyzer', 'ai_lesson_generation', 'text_to_speech']
+  });
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const docRef = doc(db, 'config', 'features');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setAppConfig(docSnap.data() as AppConfig);
+        } else {
+          await setDoc(docRef, appConfig);
+        }
+      } catch (e) {
+        console.error("Failed to load config", e);
+      }
+    };
+    fetchConfig();
+  }, []);
 
   // Check for existing session
   useEffect(() => {
@@ -27,9 +51,15 @@ const App: React.FC = () => {
         const userDoc = await getDoc(userDocRef);
         let progress = { ...INITIAL_USER_PROGRESS };
         if (userDoc.exists()) {
-          progress = userDoc.data().progress;
+          progress = { ...INITIAL_USER_PROGRESS, ...userDoc.data().progress };
         }
-        setUser({ username: firebaseUser.displayName || firebaseUser.email || 'Learner', progress, uid: firebaseUser.uid });
+        setUser({ 
+          username: firebaseUser.displayName || firebaseUser.email || 'Learner', 
+          progress, 
+          uid: firebaseUser.uid,
+          isPro: userDoc.exists() ? userDoc.data().isPro : false,
+          email: firebaseUser.email || undefined
+        });
         setView(AppView.DASHBOARD);
       } else {
         setUser(null);
@@ -63,7 +93,8 @@ const App: React.FC = () => {
     const newProgress = { ...user.progress };
     
     // Logic: Only add XP/Tree if lesson wasn't done before
-    if (!newProgress.completedLessons.includes(activeLesson.id)) {
+    if (!newProgress.completedLessons?.includes(activeLesson.id)) {
+        newProgress.completedLessons = newProgress.completedLessons || [];
         newProgress.completedLessons.push(activeLesson.id);
         newProgress.xp += 100;
         newProgress.garden.trees += 1;
@@ -90,11 +121,13 @@ const App: React.FC = () => {
       const newProgress = { ...user.progress };
       
       // Add result history
+      newProgress.assessments = newProgress.assessments || [];
       newProgress.assessments.push(result);
 
       if (result.passed) {
           // Unlock next tier if not already unlocked
           const nextTier = result.tierId + 1;
+          newProgress.unlockedTiers = newProgress.unlockedTiers || [];
           if (!newProgress.unlockedTiers.includes(nextTier)) {
               newProgress.unlockedTiers.push(nextTier);
           }
@@ -114,6 +147,10 @@ const App: React.FC = () => {
 
   // --- RENDER VIEWS ---
 
+  if (window.location.pathname === '/ad-min') {
+    return <AdminPage />;
+  }
+
   if (loading) {
     return <div className="min-h-screen bg-stone-50 flex items-center justify-center">Loading...</div>;
   }
@@ -122,12 +159,23 @@ const App: React.FC = () => {
       return <LoginScreen onLogin={handleLogin} />;
   }
 
+  if (view === AppView.UPGRADE && user) {
+      return (
+          <UpgradePage 
+              user={user} 
+              onBack={() => setView(AppView.DASHBOARD)} 
+              onUpgradeSuccess={() => setUser({ ...user, isPro: true })} 
+          />
+      );
+  }
+
   if (view === AppView.ASSESSMENT && activeAssessment) {
       return (
           <div className="min-h-screen bg-stone-50 p-6">
             <TierAssessment 
                 tierId={activeAssessment.tierId}
                 roots={activeAssessment.roots}
+                isPro={user?.isPro || false}
                 onComplete={handleAssessmentComplete}
                 onCancel={() => setView(AppView.DASHBOARD)}
             />
@@ -145,10 +193,12 @@ const App: React.FC = () => {
         <Dashboard 
           user={user}
           progress={user.progress} 
+          appConfig={appConfig}
           onSelectLesson={handleLessonSelect} 
           onGoToGarden={() => setView(AppView.GARDEN)} 
           onTakeAssessment={handleTakeAssessment}
           onGoToAnalyzer={() => setView(AppView.ANALYZER)}
+          onGoToUpgrade={() => setView(AppView.UPGRADE)}
           onLogout={handleLogout}
         />
       )}

@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { DrillQuestion, TierAssessmentResult } from '../types';
-import { generateTierAssessment, evaluateAssessment } from '../services/geminiService';
+import { getTierAssessment, evaluateAssessment } from '../services/geminiService';
 import { CheckCircle, XCircle, Loader2, Award, AlertCircle, RefreshCw, Clock } from 'lucide-react';
 
 interface TierAssessmentProps {
   tierId: number;
   roots: string[];
+  isPro: boolean;
   onComplete: (result: TierAssessmentResult) => void;
   onCancel: () => void;
 }
 
-export const TierAssessment: React.FC<TierAssessmentProps> = ({ tierId, roots, onComplete, onCancel }) => {
+export const TierAssessment: React.FC<TierAssessmentProps> = ({ tierId, roots, isPro, onComplete, onCancel }) => {
   const [loading, setLoading] = useState(true);
   const [questions, setQuestions] = useState<DrillQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<number, string>>({});
@@ -26,7 +27,7 @@ export const TierAssessment: React.FC<TierAssessmentProps> = ({ tierId, roots, o
     setLoading(true);
     setError(false);
     setSeconds(0);
-    generateTierAssessment(tierId, roots)
+    getTierAssessment(tierId, roots, isPro)
       .then(qs => {
         if (qs && qs.length > 0) {
             setQuestions(qs);
@@ -39,7 +40,7 @@ export const TierAssessment: React.FC<TierAssessmentProps> = ({ tierId, roots, o
           setError(true);
           setLoading(false);
       });
-  }, [tierId, roots]);
+  }, [tierId, roots, isPro]);
 
   useEffect(() => {
     loadExam();
@@ -221,7 +222,7 @@ export const TierAssessment: React.FC<TierAssessmentProps> = ({ tierId, roots, o
                         <h3 className="text-lg font-medium">{q.question}</h3>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-12">
-                        {q.options.map(opt => (
+                        {q.options?.map(opt => (
                             <button
                                 key={opt}
                                 onClick={() => handleSelect(idx, opt)}

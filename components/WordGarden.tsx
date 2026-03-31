@@ -8,7 +8,7 @@ interface WordGardenProps {
 }
 
 export const WordGarden: React.FC<WordGardenProps> = ({ progress, onBack }) => {
-  const treeCount = progress.garden.trees;
+  const treeCount = progress.garden?.trees || 0;
 
   return (
     <div className="min-h-screen bg-sky-100 relative overflow-hidden flex flex-col">

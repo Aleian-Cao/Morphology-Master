@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { DrillQuestion, Lesson, PartType, RemediationPlan, WordPart } from '../types';
 import { db } from '../firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 
 const apiKey = process.env.API_KEY || '';
 const ai = new GoogleGenAI({ apiKey });
@@ -192,7 +192,43 @@ export const generateRemediation = async (root: string, missedQuestions: string[
     }
 };
 
-export const generateTierAssessment = async (tierId: number, roots: string[]): Promise<DrillQuestion[]> => {
+export const getTierAssessment = async (tierId: number, roots: string[], isPro: boolean): Promise<DrillQuestion[]> => {
+  if (!isPro) {
+    try {
+      const q = query(collection(db, 'public_assessments'), where('tierId', '==', tierId));
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        const docs = snapshot.docs.map(d => d.data());
+        const randomDoc = docs[Math.floor(Math.random() * docs.length)];
+        console.log("Loaded assessment from public pool");
+        return randomDoc.questions || [];
+      }
+      console.log("Public pool is empty for Base user. Falling back to AI generation.");
+    } catch (e) {
+      console.error("Error fetching public assessment", e);
+    }
+  }
+
+  // Generate new if Pro OR if public pool is empty
+  console.log("Generating new assessment with AI");
+  const questions = await generateTierAssessment(tierId, roots);
+
+  if (questions.length > 0) {
+    try {
+      await addDoc(collection(db, 'public_assessments'), {
+        tierId,
+        questions,
+        createdAt: new Date().toISOString()
+      });
+    } catch (e) {
+      console.error("Failed to cache assessment", e);
+    }
+  }
+
+  return questions;
+};
+
+const generateTierAssessment = async (tierId: number, roots: string[]): Promise<DrillQuestion[]> => {
   try {
     const sampledRoots = roots.sort(() => 0.5 - Math.random()).slice(0, 5);
     

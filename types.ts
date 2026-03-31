@@ -86,6 +86,8 @@ export interface User {
   username: string;
   progress: UserProgress;
   uid?: string;
+  isPro?: boolean;
+  email?: string;
 }
 
 export interface DrillQuestion {
@@ -107,7 +109,8 @@ export enum AppView {
   LESSON = 'LESSON',
   GARDEN = 'GARDEN',
   ASSESSMENT = 'ASSESSMENT',
-  ANALYZER = 'ANALYZER'
+  ANALYZER = 'ANALYZER',
+  UPGRADE = 'UPGRADE'
 }
 
 export interface MorphologyAnalysis {
@@ -118,4 +121,9 @@ export interface MorphologyAnalysis {
   parts: WordPart[];
   synonyms: string[];
   morphologicalRelatives: string[];
+}
+
+export interface AppConfig {
+  baseFeatures: string[];
+  proFeatures: string[];
 }

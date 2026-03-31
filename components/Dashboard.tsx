@@ -1,19 +1,21 @@
 import React, { useState } from 'react';
 import { CURRICULUM } from '../constants';
-import { Lesson, UserProgress } from '../types';
-import { Lock, Unlock, Star, Leaf, ChevronDown, ChevronUp, Book, LogOut, GraduationCap, CheckCircle, Search } from 'lucide-react';
+import { Lesson, UserProgress, AppConfig } from '../types';
+import { Lock, Unlock, Star, Leaf, ChevronDown, ChevronUp, Book, LogOut, GraduationCap, CheckCircle, Search, Shield } from 'lucide-react';
 
 interface DashboardProps {
-  user: { username: string };
+  user: { username: string; isPro?: boolean };
   progress: UserProgress;
+  appConfig: AppConfig;
   onSelectLesson: (lesson: Lesson) => void;
   onGoToGarden: () => void;
   onTakeAssessment: (tierId: number, roots: string[]) => void;
   onGoToAnalyzer: () => void;
+  onGoToUpgrade: () => void;
   onLogout: () => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ user, progress, onSelectLesson, onGoToGarden, onTakeAssessment, onGoToAnalyzer, onLogout }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ user, progress, appConfig, onSelectLesson, onGoToGarden, onTakeAssessment, onGoToAnalyzer, onGoToUpgrade, onLogout }) => {
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
 
   const toggleModule = (moduleId: string) => {
@@ -27,15 +29,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, progress, onSelectLe
       // Always unlock Tier 1
       if (tierId === 1) return true;
       // Unlock if in unlockedTiers list (from skipping)
-      if (progress.unlockedTiers.includes(tierId)) return true;
+      if (progress.unlockedTiers?.includes(tierId)) return true;
       
       // Unlock if previous tier assessment passed
-      const prevTierAssessment = progress.assessments.find(a => a.tierId === tierId - 1 && a.passed);
+      const prevTierAssessment = progress.assessments?.find(a => a.tierId === tierId - 1 && a.passed);
       if (prevTierAssessment) return true;
 
       // Legacy logic fallback: Check if enough lessons from previous tier are done
       // (Simplified for this version to rely on Assessments mainly for unlocking)
       return false; 
+  };
+
+  const hasFeature = (featureId: string) => {
+    if (user.isPro) {
+      return appConfig.proFeatures.includes(featureId) || appConfig.baseFeatures.includes(featureId);
+    }
+    return appConfig.baseFeatures.includes(featureId);
   };
 
   return (
@@ -48,32 +57,54 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, progress, onSelectLe
             <div className="flex items-center gap-3 mb-2">
                 <h1 className="text-4xl font-serif font-bold text-stone-900">Morphology Master</h1>
                 <span className="text-stone-400 text-sm font-mono px-2 py-1 bg-stone-100 rounded">v2.0</span>
+                {user.isPro && (
+                  <span className="flex items-center gap-1 text-amber-600 text-sm font-bold px-2 py-1 bg-amber-100 rounded-full">
+                    <Shield size={14} /> PRO
+                  </span>
+                )}
             </div>
             <p className="text-stone-500 text-lg">Welcome back, <span className="font-bold text-stone-800">{user.username}</span>.</p>
           </div>
           
-          <div className="flex gap-4 w-full md:w-auto">
-             <button 
-                onClick={onGoToAnalyzer}
-                className="bg-blue-100 hover:bg-blue-200 border border-blue-300 px-6 py-3 rounded-xl flex items-center gap-4 transition-all flex-1 md:flex-none"
-            >
-                <div className="text-right">
-                <p className="text-xs font-bold text-blue-800 uppercase tracking-widest">Analyzer</p>
-                <p className="text-blue-900 font-bold">Word Lab</p>
-                </div>
-                <Search className="text-blue-600" size={28} />
-            </button>
+          <div className="flex flex-wrap gap-4 w-full md:w-auto">
+             {!user.isPro && (
+               <button 
+                  onClick={onGoToUpgrade}
+                  className="bg-amber-100 hover:bg-amber-200 border border-amber-300 px-6 py-3 rounded-xl flex items-center gap-4 transition-all flex-1 md:flex-none"
+              >
+                  <div className="text-right">
+                  <p className="text-xs font-bold text-amber-800 uppercase tracking-widest">Upgrade</p>
+                  <p className="text-amber-900 font-bold">Get Pro</p>
+                  </div>
+                  <Star className="text-amber-600" size={28} />
+              </button>
+             )}
 
-             <div 
-                onClick={onGoToGarden}
-                className="cursor-pointer bg-green-100 hover:bg-green-200 border border-green-300 px-6 py-3 rounded-xl flex items-center gap-4 transition-all flex-1 md:flex-none"
-            >
-                <div className="text-right">
-                <p className="text-xs font-bold text-green-800 uppercase tracking-widest">Garden</p>
-                <p className="text-green-900 font-bold">{progress.garden.trees} Plants</p>
-                </div>
-                <Leaf className="text-green-600" size={28} />
-            </div>
+             {hasFeature('morphology_analyzer') && (
+               <button 
+                  onClick={onGoToAnalyzer}
+                  className="bg-blue-100 hover:bg-blue-200 border border-blue-300 px-6 py-3 rounded-xl flex items-center gap-4 transition-all flex-1 md:flex-none"
+              >
+                  <div className="text-right">
+                  <p className="text-xs font-bold text-blue-800 uppercase tracking-widest">Analyzer</p>
+                  <p className="text-blue-900 font-bold">Word Lab</p>
+                  </div>
+                  <Search className="text-blue-600" size={28} />
+              </button>
+             )}
+
+             {hasFeature('word_garden') && (
+               <div 
+                  onClick={onGoToGarden}
+                  className="cursor-pointer bg-green-100 hover:bg-green-200 border border-green-300 px-6 py-3 rounded-xl flex items-center gap-4 transition-all flex-1 md:flex-none"
+              >
+                  <div className="text-right">
+                  <p className="text-xs font-bold text-green-800 uppercase tracking-widest">Garden</p>
+                  <p className="text-green-900 font-bold">{progress.garden.trees} Plants</p>
+                  </div>
+                  <Leaf className="text-green-600" size={28} />
+              </div>
+             )}
 
             <button 
                 onClick={onLogout}
@@ -89,7 +120,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, progress, onSelectLe
         <div className="space-y-16">
           {CURRICULUM.map((tier) => {
             const unlocked = isTierUnlocked(tier.id);
-            const passedAssessment = progress.assessments.find(a => a.tierId === tier.id && a.passed);
+            const passedAssessment = progress.assessments?.find(a => a.tierId === tier.id && a.passed);
             // Gather all roots for this tier for assessment generation
             const tierRoots = tier.modules.flatMap(m => m.lessons.map(l => l.root));
 
@@ -111,13 +142,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, progress, onSelectLe
                                 <CheckCircle size={20} /> Tier Mastered
                             </div>
                         ) : (
-                            <button 
-                                onClick={() => onTakeAssessment(tier.id, tierRoots)}
-                                className="flex items-center gap-2 bg-orange-100 hover:bg-orange-200 text-orange-800 px-4 py-2 rounded-lg font-bold transition-colors text-sm"
-                            >
-                                <GraduationCap size={18} />
-                                {unlocked ? "Take Final Exam" : "Skip to this Tier"}
-                            </button>
+                            hasFeature('tier_assessments') && (
+                              <button 
+                                  onClick={() => onTakeAssessment(tier.id, tierRoots)}
+                                  className="flex items-center gap-2 bg-orange-100 hover:bg-orange-200 text-orange-800 px-4 py-2 rounded-lg font-bold transition-colors text-sm"
+                              >
+                                  <GraduationCap size={18} />
+                                  {unlocked ? "Take Final Exam" : "Skip to this Tier"}
+                              </button>
+                            )
                         )}
                     </div>
                 </div>
@@ -148,7 +181,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, progress, onSelectLe
                         {(shouldExpand || (tier.id === 1 && module.id === "m1_neg")) && unlocked && (
                             <div className="border-t border-stone-100 bg-stone-50/50 p-2 space-y-1 max-h-[400px] overflow-y-auto custom-scrollbar">
                             {module.lessons.map((lesson) => {
-                                const isCompleted = progress.completedLessons.includes(lesson.id) || passedAssessment; // Assessment passes all lessons
+                                const isCompleted = progress.completedLessons?.includes(lesson.id) || passedAssessment; // Assessment passes all lessons
                                 
                                 return (
                                 <button

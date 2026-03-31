@@ -390,7 +390,7 @@ export const LessonFlow: React.FC<LessonFlowProps> = ({ lesson: initialLesson, o
            <h3 className="text-lg font-medium text-stone-800 mb-6 leading-relaxed mt-4">{currentQ.question}</h3>
            
            <div className="space-y-3">
-             {currentQ.options.map((option, idx) => {
+             {currentQ.options?.map((option, idx) => {
                let btnClass = "w-full text-left p-4 rounded-xl border-2 transition-all ";
                if (showAnswer) {
                  if (option === currentQ.correctAnswer) btnClass += "bg-green-100 border-green-500 text-green-800";
@@ -458,7 +458,7 @@ export const LessonFlow: React.FC<LessonFlowProps> = ({ lesson: initialLesson, o
                   <p className="text-stone-700 italic mb-4">"{remediation.analysis}"</p>
                   
                   <div className="space-y-2">
-                      {remediation.reviewPoints.map((point, i) => (
+                      {remediation.reviewPoints?.map((point, i) => (
                           <div key={i} className="flex gap-2 items-start">
                               <span className="bg-red-100 text-red-600 rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold mt-0.5">{i+1}</span>
                               <p className="text-sm text-stone-600">{point}</p>

@@ -22,7 +22,7 @@ export const DissectionLab: React.FC<DissectionLabProps> = ({ pack, onComplete }
   }, [currentIndex, pack]);
 
   const setupRound = () => {
-    const parts = currentTarget.parts;
+    const parts = currentTarget.parts || [];
     const shuffled = [...parts].sort(() => Math.random() - 0.5);
     setBank(shuffled);
     setSlots(new Array(parts.length).fill(null));
@@ -82,7 +82,7 @@ export const DissectionLab: React.FC<DissectionLabProps> = ({ pack, onComplete }
     if (!isFull) return;
 
     // Strict order check
-    const isCorrect = currentSlots.every((s, idx) => s && s.text === currentTarget.parts[idx].text);
+    const isCorrect = currentSlots.every((s, idx) => s && s.text === currentTarget.parts?.[idx]?.text);
     
     if (isCorrect) {
       setIsSuccess(true);
