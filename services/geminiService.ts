@@ -1,5 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { DrillQuestion, Lesson, PartType, RemediationPlan, WordPart } from '../types';
+import { db } from '../firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 const apiKey = process.env.API_KEY || '';
 const ai = new GoogleGenAI({ apiKey });
@@ -13,8 +15,18 @@ const getText = (response: any): string => {
 };
 
 // 1. Generate Lesson Content (Bilingual, Multi-Dissection)
-export const enrichLessonData = async (root: string, category: string): Promise<Partial<Lesson>> => {
+export const enrichLessonData = async (lessonId: string, root: string, category: string, tier: number): Promise<Partial<Lesson>> => {
   try {
+    // 1. Check Firestore cache
+    const docRef = doc(db, 'public_lessons', lessonId);
+    const docSnap = await getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      console.log("Loaded lesson from public cache:", lessonId);
+      return docSnap.data() as Partial<Lesson>;
+    }
+
+    console.log("Generating new lesson with AI:", lessonId);
     const prompt = `
       Create a deep, bilingual (English & Vietnamese) morphology lesson for the root/affix: "${root}" (${category}).
       
@@ -54,7 +66,26 @@ export const enrichLessonData = async (root: string, category: string): Promise<
     });
 
     const jsonStr = getText(response);
-    return JSON.parse(jsonStr);
+    const parsed = JSON.parse(jsonStr);
+
+    // Save to Firestore cache
+    const enrichedData = {
+      id: lessonId,
+      root,
+      category,
+      tier,
+      ...parsed,
+      createdAt: new Date().toISOString()
+    };
+
+    try {
+      await setDoc(docRef, enrichedData);
+      console.log("Saved lesson to public cache:", lessonId);
+    } catch (e) {
+      console.error("Failed to cache lesson:", e);
+    }
+
+    return parsed;
 
   } catch (error) {
     console.error("Enrichment Error:", error);

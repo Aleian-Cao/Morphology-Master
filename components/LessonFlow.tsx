@@ -41,7 +41,7 @@ export const LessonFlow: React.FC<LessonFlowProps> = ({ lesson: initialLesson, o
   useEffect(() => {
     const hydrate = async () => {
         if (!lesson.dissectionPack || lesson.dissectionPack.length === 0) {
-            const enriched = await enrichLessonData(lesson.root, lesson.category);
+            const enriched = await enrichLessonData(lesson.id, lesson.root, lesson.category, lesson.tier);
             setLesson(prev => ({ ...prev, ...enriched }));
         }
         setPhase('DISCOVERY');

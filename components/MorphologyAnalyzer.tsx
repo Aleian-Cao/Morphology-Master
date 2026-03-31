@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Search, Save, Trash2, Loader2, BookOpen } from 'lucide-react';
+import { ArrowLeft, Search, Save, Trash2, Loader2, BookOpen, Volume2 } from 'lucide-react';
 import { MorphologyAnalysis } from '../types';
 import { analyzeMorphology } from '../services/geminiService';
 import { db, auth } from '../firebase';
@@ -92,11 +92,28 @@ export const MorphologyAnalyzer: React.FC<MorphologyAnalyzerProps> = ({ onBack }
     }
   };
 
+  const handleSpeak = (text: string) => {
+    if ('speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'en-US';
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
   const renderAnalysis = (analysis: MorphologyAnalysis, isSaved = false) => (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-stone-200 mt-6">
       <div className="flex justify-between items-start mb-4">
         <div>
-          <h2 className="text-3xl font-serif font-bold text-stone-900">{analysis.word}</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-3xl font-serif font-bold text-stone-900">{analysis.word}</h2>
+            <button 
+              onClick={() => handleSpeak(analysis.word)}
+              className="p-2 text-stone-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+              title="Listen to pronunciation"
+            >
+              <Volume2 size={24} />
+            </button>
+          </div>
           <p className="text-stone-500 font-mono text-lg">{analysis.phonetic}</p>
         </div>
         {!isSaved && (

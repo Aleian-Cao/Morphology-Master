@@ -28,5 +28,12 @@ service cloud.firestore {
       allow update: if false; // Immutable
       allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
+
+    match /public_lessons/{lessonId} {
+      allow read: if true; // Publicly readable
+      allow create: if isAuthenticated() && request.resource.data.keys().hasAll(['id', 'root', 'meaning', 'category', 'tier']);
+      allow update: if false; // Immutable once created
+      allow delete: if false;
+    }
   }
 }

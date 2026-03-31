@@ -52,12 +52,49 @@
         }
       },
       "required": ["word", "userId", "createdAt"]
+    },
+    "PublicLesson": {
+      "title": "Public Lesson",
+      "description": "A cached, AI-generated lesson shared publicly.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "root": { "type": "string" },
+        "tier": { "type": "number" },
+        "category": { "type": "string" },
+        "meaning": { "type": "string" },
+        "phonetic": { "type": "string" },
+        "parts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": { "type": "string" },
+              "type": { "type": "string" },
+              "meaning": { "type": "string" }
+            }
+          }
+        },
+        "derivatives": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "metaphor": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "root", "meaning", "category", "tier"]
     }
   },
   "firestore": {
     "/analyses/{analysisId}": {
       "schema": { "$ref": "#/entities/MorphologyAnalysis" },
       "description": "Saved morphology analyses."
+    },
+    "/public_lessons/{lessonId}": {
+      "schema": { "$ref": "#/entities/PublicLesson" },
+      "description": "Publicly shared, AI-generated lessons."
     }
   }
 }
