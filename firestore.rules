@@ -44,7 +44,8 @@ service cloud.firestore {
     }
 
     match /pro_keys/{keyId} {
-      allow read: if isAuthenticated();
+      allow get: if isAuthenticated();
+      allow list: if isAuthenticated() && request.auth.token.email == "10a10caonguyenthanhan@gmail.com";
       allow create: if isAuthenticated() && request.auth.token.email == "10a10caonguyenthanhan@gmail.com";
       allow update: if isAuthenticated() && resource.data.used == false && request.resource.data.used == true;
       allow delete: if false;

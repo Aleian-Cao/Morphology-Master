@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Key, Plus, Copy, Settings, GripVertical, Lock } from 'lucide-react';
-import { db } from '../firebase';
+import { Shield, Key, Plus, Copy, Settings, GripVertical, Lock, LogIn } from 'lucide-react';
+import { db, auth } from '../firebase';
 import { doc, getDoc, setDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { AppConfig } from '../types';
 
 export const AdminPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [error, setError] = useState('');
   
   const [adminKeys, setAdminKeys] = useState<any[]>([]);
@@ -16,13 +18,23 @@ export const AdminPage: React.FC = () => {
   const [configLoading, setConfigLoading] = useState(false);
 
   const correctPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'admin123';
+  const adminEmail = '10a10caonguyenthanhan@gmail.com';
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setFirebaseUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated) {
-      loadAdminKeys();
       loadConfig();
+      if (firebaseUser?.email === adminEmail) {
+        loadAdminKeys();
+      }
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, firebaseUser]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +46,16 @@ export const AdminPage: React.FC = () => {
     }
   };
 
+  const handleFirebaseLogin = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error("Firebase login failed", error);
+      setError("Failed to sign in with Google.");
+    }
+  };
+
   const loadAdminKeys = async () => {
     setAdminLoading(true);
     try {
@@ -42,11 +64,16 @@ export const AdminPage: React.FC = () => {
       setAdminKeys(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (e) {
       console.error("Failed to load keys", e);
+      setError("Failed to load keys. Ensure you are logged in with the admin Google account.");
     }
     setAdminLoading(false);
   };
 
   const handleGenerateKey = async () => {
+    if (firebaseUser?.email !== adminEmail) {
+      setError("You must be logged in with the admin Google account to generate keys.");
+      return;
+    }
     setAdminLoading(true);
     try {
       const newKey = 'PRO-' + Math.random().toString(36).substring(2, 10).toUpperCase();
@@ -57,6 +84,7 @@ export const AdminPage: React.FC = () => {
       await loadAdminKeys();
     } catch (e) {
       console.error("Failed to generate key", e);
+      setError("Failed to generate key. Check permissions.");
     }
     setAdminLoading(false);
   };
@@ -229,15 +257,33 @@ export const AdminPage: React.FC = () => {
               <Key className="text-amber-500" />
               Pro Key Management
             </h2>
-            <button 
-              onClick={handleGenerateKey}
-              disabled={adminLoading}
-              className="bg-amber-500 hover:bg-amber-600 text-stone-900 font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors"
-            >
-              <Plus size={20} />
-              Generate New Key
-            </button>
+            <div className="flex items-center gap-4">
+              {firebaseUser?.email !== adminEmail && (
+                <button 
+                  onClick={handleFirebaseLogin}
+                  className="bg-stone-800 hover:bg-stone-700 text-stone-200 font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors border border-stone-700"
+                >
+                  <LogIn size={20} />
+                  Login with Google
+                </button>
+              )}
+              <button 
+                onClick={handleGenerateKey}
+                disabled={adminLoading || firebaseUser?.email !== adminEmail}
+                className="bg-amber-500 hover:bg-amber-600 disabled:bg-stone-700 disabled:text-stone-500 text-stone-900 font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors"
+                title={firebaseUser?.email !== adminEmail ? "Please login with admin Google account first" : ""}
+              >
+                <Plus size={20} />
+                Generate New Key
+              </button>
+            </div>
           </div>
+
+          {error && (
+            <div className="bg-red-900/30 text-red-400 p-4 rounded-xl mb-6 border border-red-900/50">
+              {error}
+            </div>
+          )}
 
           <div className="bg-stone-950 rounded-xl overflow-hidden border border-stone-800">
             <table className="w-full text-left">
