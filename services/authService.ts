@@ -1,54 +1,53 @@
 import { User, UserProgress } from '../types';
 import { INITIAL_USER_PROGRESS } from '../constants';
+import { auth, db } from '../firebase';
+import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
-const DB_KEY = 'morphology_users_db';
-const SESSION_KEY = 'morphology_current_user';
-
-interface UserDatabase {
-  [username: string]: UserProgress;
-}
-
-// Helper to get DB
-const getDB = (): UserDatabase => {
-  const db = localStorage.getItem(DB_KEY);
-  return db ? JSON.parse(db) : {};
-};
-
-// Helper to save DB
-const saveDB = (db: UserDatabase) => {
-  localStorage.setItem(DB_KEY, JSON.stringify(db));
-};
-
-export const loginUser = (username: string): User => {
-  const db = getDB();
-  let progress = db[username];
-
-  if (!progress) {
-    // New user, create entry
-    progress = { ...INITIAL_USER_PROGRESS };
-    db[username] = progress;
-    saveDB(db);
+export const loginWithGoogle = async (): Promise<User | null> => {
+  try {
+    const provider = new GoogleAuthProvider();
+    const result = await signInWithPopup(auth, provider);
+    const user = result.user;
+    
+    // Check if user exists in Firestore
+    const userDocRef = doc(db, 'users', user.uid);
+    const userDoc = await getDoc(userDocRef);
+    
+    let progress = { ...INITIAL_USER_PROGRESS };
+    
+    if (userDoc.exists()) {
+      progress = userDoc.data().progress;
+    } else {
+      // Create new user in Firestore
+      await setDoc(userDocRef, {
+        username: user.displayName || user.email || 'Learner',
+        progress,
+        uid: user.uid
+      });
+    }
+    
+    return { username: user.displayName || user.email || 'Learner', progress, uid: user.uid };
+  } catch (error) {
+    console.error("Google Login Error:", error);
+    return null;
   }
-
-  const user = { username, progress };
-  localStorage.setItem(SESSION_KEY, JSON.stringify(user));
-  return user;
 };
 
-export const logoutUser = () => {
-  localStorage.removeItem(SESSION_KEY);
+export const logoutUser = async () => {
+  try {
+    await signOut(auth);
+  } catch (error) {
+    console.error("Logout Error:", error);
+  }
 };
 
-export const getCurrentUser = (): User | null => {
-  const session = localStorage.getItem(SESSION_KEY);
-  return session ? JSON.parse(session) : null;
-};
-
-export const saveUserProgress = (username: string, progress: UserProgress) => {
-  const db = getDB();
-  db[username] = progress;
-  saveDB(db);
-  
-  // Also update session
-  localStorage.setItem(SESSION_KEY, JSON.stringify({ username, progress }));
+export const saveUserProgress = async (uid: string, progress: UserProgress) => {
+  if (!uid) return;
+  try {
+    const userDocRef = doc(db, 'users', uid);
+    await setDoc(userDocRef, { progress }, { merge: true });
+  } catch (error) {
+    console.error("Error saving progress:", error);
+  }
 };

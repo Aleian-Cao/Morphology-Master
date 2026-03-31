@@ -85,6 +85,7 @@ export interface UserProgress {
 export interface User {
   username: string;
   progress: UserProgress;
+  uid?: string;
 }
 
 export interface DrillQuestion {
@@ -105,5 +106,16 @@ export enum AppView {
   DASHBOARD = 'DASHBOARD',
   LESSON = 'LESSON',
   GARDEN = 'GARDEN',
-  ASSESSMENT = 'ASSESSMENT'
+  ASSESSMENT = 'ASSESSMENT',
+  ANALYZER = 'ANALYZER'
+}
+
+export interface MorphologyAnalysis {
+  word: string;
+  phonetic: string;
+  meaning_vi: string;
+  explanation_vi?: string;
+  parts: WordPart[];
+  synonyms: string[];
+  morphologicalRelatives: string[];
 }

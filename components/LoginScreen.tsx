@@ -1,20 +1,22 @@
 import React, { useState } from 'react';
 import { User } from '../types';
-import { loginUser } from '../services/authService';
-import { BookOpen, UserCircle2 } from 'lucide-react';
+import { loginWithGoogle } from '../services/authService';
+import { BookOpen, UserCircle2, Loader2 } from 'lucide-react';
 
 interface LoginScreenProps {
   onLogin: (user: User) => void;
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
-  const [username, setUsername] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!username.trim()) return;
-    const user = loginUser(username.trim());
-    onLogin(user);
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    const user = await loginWithGoogle();
+    if (user) {
+      onLogin(user);
+    }
+    setLoading(false);
   };
 
   return (
@@ -28,30 +30,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
             <p className="text-stone-500 text-center mt-2">Unlock the building blocks of English.</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-                <label className="block text-stone-700 font-bold mb-2">Who is learning today?</label>
-                <div className="relative">
-                    <UserCircle2 className="absolute left-3 top-3 text-stone-400" size={20} />
-                    <input 
-                        type="text" 
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        placeholder="Enter your name"
-                        className="w-full pl-10 pr-4 py-3 rounded-xl border border-stone-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 outline-none transition-all"
-                        required
-                    />
-                </div>
-                <p className="text-xs text-stone-400 mt-2">Enter any name. We'll save your progress locally.</p>
-            </div>
-
+        <div className="space-y-6">
             <button 
-                type="submit"
-                className="w-full bg-stone-900 text-white py-3 rounded-xl font-bold hover:bg-stone-800 transition-transform active:scale-95 shadow-lg"
+                onClick={handleGoogleLogin}
+                disabled={loading}
+                className="w-full bg-stone-900 text-white py-3 rounded-xl font-bold hover:bg-stone-800 transition-transform active:scale-95 shadow-lg flex items-center justify-center gap-2"
             >
-                Start Learning
+                {loading ? <Loader2 className="animate-spin" size={20} /> : 'Sign in with Google'}
             </button>
-        </form>
+            <p className="text-xs text-stone-400 mt-2 text-center">Your progress will be saved securely.</p>
+        </div>
       </div>
     </div>
   );

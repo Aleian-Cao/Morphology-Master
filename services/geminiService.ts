@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { DrillQuestion, Lesson, PartType, RemediationPlan, WordPart } from '../types';
 
-const apiKey = process.env.VITE_GEMINI_API_KEY || '';
+const apiKey = process.env.API_KEY || '';
 const ai = new GoogleGenAI({ apiKey });
 
 const getText = (response: any): string => {
@@ -217,6 +217,50 @@ export const generateTierAssessment = async (tierId: number, roots: string[]): P
     console.error("Assessment Gen Error", error);
     return [];
   }
+};
+
+export const analyzeMorphology = async (word: string): Promise<any> => {
+    try {
+        const prompt = `
+          Analyze the morphology of the English word "${word}".
+          Provide the following details:
+          1. phonetic: The phonetic transcription (IPA).
+          2. meaning_vi: The Vietnamese meaning of the word.
+          3. explanation_vi: A detailed explanation in Vietnamese of how the morphological parts combine to form the word's overall meaning (e.g., 'un-' means not, 'believ' means trust, '-able' means capable of, so it means not capable of being trusted).
+          4. parts: Break down the word into its morphological parts (PREFIX, ROOT, SUFFIX) with their English and Vietnamese meanings.
+          5. synonyms: A list of 3-5 synonyms in English.
+          6. morphologicalRelatives: A list of 3-5 words that share the same root or morphological structure (đồng hình thái học).
+
+          JSON Schema:
+          {
+            "word": string,
+            "phonetic": string,
+            "meaning_vi": string,
+            "explanation_vi": string,
+            "parts": [
+              {
+                "text": string,
+                "type": "PREFIX" | "ROOT" | "SUFFIX",
+                "meaning": string,
+                "meaning_vi": string
+              }
+            ],
+            "synonyms": [string],
+            "morphologicalRelatives": [string]
+          }
+        `;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: prompt,
+            config: { responseMimeType: "application/json" }
+        });
+
+        return JSON.parse(getText(response));
+    } catch (e) {
+        console.error("Morphology Analysis Error:", e);
+        return null;
+    }
 };
 
 export const evaluateAssessment = async (tierId: number, score: number, total: number, missedConcepts: string[], timeTakenSeconds: number): Promise<string> => {

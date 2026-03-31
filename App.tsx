@@ -1,25 +1,44 @@
 import React, { useState, useEffect } from 'react';
 import { AppView, Lesson, User, TierAssessmentResult } from './types';
-import { getCurrentUser, logoutUser, saveUserProgress } from './services/authService';
+import { logoutUser, saveUserProgress } from './services/authService';
 import { Dashboard } from './components/Dashboard';
 import { LessonFlow } from './components/LessonFlow';
 import { WordGarden } from './components/WordGarden';
 import { LoginScreen } from './components/LoginScreen';
 import { TierAssessment } from './components/TierAssessment';
+import { MorphologyAnalyzer } from './components/MorphologyAnalyzer';
+import { auth, db } from './firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { INITIAL_USER_PROGRESS } from './constants';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [view, setView] = useState<AppView>(AppView.LOGIN);
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
   const [activeAssessment, setActiveAssessment] = useState<{tierId: number, roots: string[]} | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // Check for existing session
   useEffect(() => {
-    const sessionUser = getCurrentUser();
-    if (sessionUser) {
-        setUser(sessionUser);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const userDocRef = doc(db, 'users', firebaseUser.uid);
+        const userDoc = await getDoc(userDocRef);
+        let progress = { ...INITIAL_USER_PROGRESS };
+        if (userDoc.exists()) {
+          progress = userDoc.data().progress;
+        }
+        setUser({ username: firebaseUser.displayName || firebaseUser.email || 'Learner', progress, uid: firebaseUser.uid });
         setView(AppView.DASHBOARD);
-    }
+      } else {
+        setUser(null);
+        setView(AppView.LOGIN);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const handleLogin = (loggedInUser: User) => {
@@ -27,8 +46,8 @@ const App: React.FC = () => {
       setView(AppView.DASHBOARD);
   };
 
-  const handleLogout = () => {
-      logoutUser();
+  const handleLogout = async () => {
+      await logoutUser();
       setUser(null);
       setView(AppView.LOGIN);
   };
@@ -50,7 +69,7 @@ const App: React.FC = () => {
         newProgress.garden.trees += 1;
         
         // Save to DB
-        saveUserProgress(user.username, newProgress);
+        saveUserProgress(user.uid!, newProgress);
         setUser({ ...user, progress: newProgress });
     }
 
@@ -86,7 +105,7 @@ const App: React.FC = () => {
           newProgress.xp += 500; // Big bonus
       }
 
-      saveUserProgress(user.username, newProgress);
+      saveUserProgress(user.uid!, newProgress);
       setUser({ ...user, progress: newProgress });
 
       // Return to dashboard after short delay or button press (handled in component)
@@ -94,6 +113,10 @@ const App: React.FC = () => {
   };
 
   // --- RENDER VIEWS ---
+
+  if (loading) {
+    return <div className="min-h-screen bg-stone-50 flex items-center justify-center">Loading...</div>;
+  }
 
   if (view === AppView.LOGIN || !user) {
       return <LoginScreen onLogin={handleLogin} />;
@@ -112,6 +135,10 @@ const App: React.FC = () => {
       );
   }
 
+  if (view === AppView.ANALYZER) {
+      return <MorphologyAnalyzer onBack={() => setView(AppView.DASHBOARD)} />;
+  }
+
   return (
     <div className="antialiased text-stone-900">
       {view === AppView.DASHBOARD && (
@@ -121,6 +148,7 @@ const App: React.FC = () => {
           onSelectLesson={handleLessonSelect} 
           onGoToGarden={() => setView(AppView.GARDEN)} 
           onTakeAssessment={handleTakeAssessment}
+          onGoToAnalyzer={() => setView(AppView.ANALYZER)}
           onLogout={handleLogout}
         />
       )}

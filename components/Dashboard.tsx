@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CURRICULUM } from '../constants';
 import { Lesson, UserProgress } from '../types';
-import { Lock, Unlock, Star, Leaf, ChevronDown, ChevronUp, Book, LogOut, GraduationCap, CheckCircle } from 'lucide-react';
+import { Lock, Unlock, Star, Leaf, ChevronDown, ChevronUp, Book, LogOut, GraduationCap, CheckCircle, Search } from 'lucide-react';
 
 interface DashboardProps {
   user: { username: string };
@@ -9,10 +9,11 @@ interface DashboardProps {
   onSelectLesson: (lesson: Lesson) => void;
   onGoToGarden: () => void;
   onTakeAssessment: (tierId: number, roots: string[]) => void;
+  onGoToAnalyzer: () => void;
   onLogout: () => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ user, progress, onSelectLesson, onGoToGarden, onTakeAssessment, onLogout }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ user, progress, onSelectLesson, onGoToGarden, onTakeAssessment, onGoToAnalyzer, onLogout }) => {
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
 
   const toggleModule = (moduleId: string) => {
@@ -52,6 +53,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, progress, onSelectLe
           </div>
           
           <div className="flex gap-4 w-full md:w-auto">
+             <button 
+                onClick={onGoToAnalyzer}
+                className="bg-blue-100 hover:bg-blue-200 border border-blue-300 px-6 py-3 rounded-xl flex items-center gap-4 transition-all flex-1 md:flex-none"
+            >
+                <div className="text-right">
+                <p className="text-xs font-bold text-blue-800 uppercase tracking-widest">Analyzer</p>
+                <p className="text-blue-900 font-bold">Word Lab</p>
+                </div>
+                <Search className="text-blue-600" size={28} />
+            </button>
+
              <div 
                 onClick={onGoToGarden}
                 className="cursor-pointer bg-green-100 hover:bg-green-200 border border-green-300 px-6 py-3 rounded-xl flex items-center gap-4 transition-all flex-1 md:flex-none"

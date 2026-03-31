@@ -1,0 +1,63 @@
+{
+  "entities": {
+    "MorphologyAnalysis": {
+      "title": "Morphology Analysis",
+      "description": "A saved morphology analysis of a word.",
+      "type": "object",
+      "properties": {
+        "word": {
+          "type": "string",
+          "description": "The word analyzed."
+        },
+        "phonetic": {
+          "type": "string",
+          "description": "The phonetic transcription."
+        },
+        "meaning_vi": {
+          "type": "string",
+          "description": "The Vietnamese meaning."
+        },
+        "explanation_vi": {
+          "type": "string",
+          "description": "A detailed explanation in Vietnamese of how the parts form the meaning."
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": { "type": "string" },
+              "type": { "type": "string" },
+              "meaning": { "type": "string" },
+              "meaning_vi": { "type": "string" }
+            }
+          }
+        },
+        "synonyms": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "morphologicalRelatives": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user who saved this analysis."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the analysis was saved."
+        }
+      },
+      "required": ["word", "userId", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/analyses/{analysisId}": {
+      "schema": { "$ref": "#/entities/MorphologyAnalysis" },
+      "description": "Saved morphology analyses."
+    }
+  }
+}
