@@ -7,11 +7,12 @@ interface TierAssessmentProps {
   tierId: number;
   roots: string[];
   isPro: boolean;
+  customApiKey?: string;
   onComplete: (result: TierAssessmentResult) => void;
   onCancel: () => void;
 }
 
-export const TierAssessment: React.FC<TierAssessmentProps> = ({ tierId, roots, isPro, onComplete, onCancel }) => {
+export const TierAssessment: React.FC<TierAssessmentProps> = ({ tierId, roots, isPro, customApiKey, onComplete, onCancel }) => {
   const [loading, setLoading] = useState(true);
   const [questions, setQuestions] = useState<DrillQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<number, string>>({});
@@ -27,7 +28,7 @@ export const TierAssessment: React.FC<TierAssessmentProps> = ({ tierId, roots, i
     setLoading(true);
     setError(false);
     setSeconds(0);
-    getTierAssessment(tierId, roots, isPro)
+    getTierAssessment(tierId, roots, isPro, customApiKey)
       .then(qs => {
         if (qs && qs.length > 0) {
             setQuestions(qs);
@@ -40,7 +41,7 @@ export const TierAssessment: React.FC<TierAssessmentProps> = ({ tierId, roots, i
           setError(true);
           setLoading(false);
       });
-  }, [tierId, roots, isPro]);
+  }, [tierId, roots, isPro, customApiKey]);
 
   useEffect(() => {
     loadExam();
@@ -104,7 +105,7 @@ export const TierAssessment: React.FC<TierAssessmentProps> = ({ tierId, roots, i
     const finalScore = Math.round((score / questions.length) * 100);
     const passed = finalScore >= 70;
 
-    const feedback = await evaluateAssessment(tierId, score, questions.length, missedConcepts, seconds);
+    const feedback = await evaluateAssessment(tierId, score, questions.length, missedConcepts, seconds, customApiKey);
     setEvaluation(feedback);
     setEvaluating(false);
 

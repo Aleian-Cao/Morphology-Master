@@ -87,6 +87,8 @@ export interface User {
   progress: UserProgress;
   uid?: string;
   isPro?: boolean;
+  proExpiresAt?: string;
+  customApiKey?: string;
   email?: string;
 }
 

@@ -7,13 +7,14 @@ import { BrainCircuit, Construction, Loader2, RefreshCw, Volume2, History, Light
 
 interface LessonFlowProps {
   lesson: Lesson;
+  customApiKey?: string;
   onComplete: () => void;
   onExit: () => void;
 }
 
 type Phase = 'PREPARING' | 'DISCOVERY' | 'DISSECTION' | 'DERIVATION' | 'DRILL' | 'REMEDIATION';
 
-export const LessonFlow: React.FC<LessonFlowProps> = ({ lesson: initialLesson, onComplete, onExit }) => {
+export const LessonFlow: React.FC<LessonFlowProps> = ({ lesson: initialLesson, customApiKey, onComplete, onExit }) => {
   const [lesson, setLesson] = useState<Lesson>(initialLesson);
   const [phase, setPhase] = useState<Phase>('PREPARING');
   const [bilingual, setBilingual] = useState(true); // Toggle for Vietnamese
@@ -41,24 +42,24 @@ export const LessonFlow: React.FC<LessonFlowProps> = ({ lesson: initialLesson, o
   useEffect(() => {
     const hydrate = async () => {
         if (!lesson.dissectionPack || lesson.dissectionPack.length === 0) {
-            const enriched = await enrichLessonData(lesson.id, lesson.root, lesson.category, lesson.tier);
+            const enriched = await enrichLessonData(lesson.id, lesson.root, lesson.category, lesson.tier, customApiKey);
             setLesson(prev => ({ ...prev, ...enriched }));
         }
         setPhase('DISCOVERY');
     };
     hydrate();
-  }, [lesson.id]);
+  }, [lesson.id, customApiKey]);
 
   // Load Drill
   useEffect(() => {
     if (phase === 'DRILL' && drillQuestions.length === 0 && !loadingDrill) {
       setLoadingDrill(true);
-      generateDrillQuestions(lesson.root, lesson.meaning || "Unknown").then(questions => {
+      generateDrillQuestions(lesson.root, lesson.meaning || "Unknown", customApiKey).then(questions => {
         setDrillQuestions(questions);
         setLoadingDrill(false);
       });
     }
-  }, [phase]);
+  }, [phase, customApiKey]);
 
   const playAudio = (text: string) => {
     if ('speechSynthesis' in window) {
@@ -74,7 +75,7 @@ export const LessonFlow: React.FC<LessonFlowProps> = ({ lesson: initialLesson, o
       setIsVerifying(true);
       setSandboxResult(null);
       
-      const result = await verifyUserDerivative(lesson.root, userWord);
+      const result = await verifyUserDerivative(lesson.root, userWord, customApiKey);
       
       setIsVerifying(false);
       setSandboxResult({
@@ -98,7 +99,7 @@ export const LessonFlow: React.FC<LessonFlowProps> = ({ lesson: initialLesson, o
   const startRemediation = async () => {
       setLoadingRemediation(true);
       setPhase('REMEDIATION');
-      const plan = await generateRemediation(lesson.root, missedConcepts);
+      const plan = await generateRemediation(lesson.root, missedConcepts, customApiKey);
       setRemediation(plan);
       setLoadingRemediation(false);
   };

@@ -44,10 +44,15 @@ export const UpgradePage: React.FC<UpgradePageProps> = ({ user, onBack, onUpgrad
           usedAt: new Date().toISOString()
         });
 
+        // Calculate expiration date (1 month from now)
+        const expiresAt = new Date();
+        expiresAt.setMonth(expiresAt.getMonth() + 1);
+
         // Update user
         if (user.uid) {
           await updateDoc(doc(db, 'users', user.uid), {
-            isPro: true
+            isPro: true,
+            proExpiresAt: expiresAt.toISOString()
           });
         }
 

@@ -50,14 +50,31 @@ const App: React.FC = () => {
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         const userDoc = await getDoc(userDocRef);
         let progress = { ...INITIAL_USER_PROGRESS };
+        let isPro = false;
+        let proExpiresAt: string | undefined;
+        let customApiKey: string | undefined;
+
         if (userDoc.exists()) {
-          progress = { ...INITIAL_USER_PROGRESS, ...userDoc.data().progress };
+          const data = userDoc.data();
+          progress = { ...INITIAL_USER_PROGRESS, ...data.progress };
+          isPro = data.isPro || false;
+          proExpiresAt = data.proExpiresAt;
+          customApiKey = data.customApiKey;
+
+          if (isPro && proExpiresAt) {
+            if (new Date(proExpiresAt) < new Date()) {
+              isPro = false;
+              await setDoc(userDocRef, { isPro: false }, { merge: true });
+            }
+          }
         }
         setUser({ 
           username: firebaseUser.displayName || firebaseUser.email || 'Learner', 
           progress, 
           uid: firebaseUser.uid,
-          isPro: userDoc.exists() ? userDoc.data().isPro : false,
+          isPro,
+          proExpiresAt,
+          customApiKey,
           email: firebaseUser.email || undefined
         });
         setView(AppView.DASHBOARD);
@@ -80,6 +97,12 @@ const App: React.FC = () => {
       await logoutUser();
       setUser(null);
       setView(AppView.LOGIN);
+  };
+
+  const handleUpdateUser = (updates: Partial<User>) => {
+    if (user) {
+      setUser({ ...user, ...updates });
+    }
   };
 
   const handleLessonSelect = (lesson: Lesson) => {
@@ -176,6 +199,7 @@ const App: React.FC = () => {
                 tierId={activeAssessment.tierId}
                 roots={activeAssessment.roots}
                 isPro={user?.isPro || false}
+                customApiKey={user?.customApiKey}
                 onComplete={handleAssessmentComplete}
                 onCancel={() => setView(AppView.DASHBOARD)}
             />
@@ -184,7 +208,7 @@ const App: React.FC = () => {
   }
 
   if (view === AppView.ANALYZER) {
-      return <MorphologyAnalyzer onBack={() => setView(AppView.DASHBOARD)} />;
+      return <MorphologyAnalyzer onBack={() => setView(AppView.DASHBOARD)} customApiKey={user?.customApiKey} />;
   }
 
   return (
@@ -192,6 +216,7 @@ const App: React.FC = () => {
       {view === AppView.DASHBOARD && (
         <Dashboard 
           user={user}
+          onUpdateUser={handleUpdateUser}
           progress={user.progress} 
           appConfig={appConfig}
           onSelectLesson={handleLessonSelect} 
@@ -206,6 +231,7 @@ const App: React.FC = () => {
       {view === AppView.LESSON && activeLesson && (
         <LessonFlow 
           lesson={activeLesson} 
+          customApiKey={user?.customApiKey}
           onComplete={handleLessonComplete} 
           onExit={() => setView(AppView.DASHBOARD)} 
         />

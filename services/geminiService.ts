@@ -3,8 +3,33 @@ import { DrillQuestion, Lesson, PartType, RemediationPlan, WordPart } from '../t
 import { db } from '../firebase';
 import { doc, getDoc, setDoc, collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 
-const apiKey = process.env.API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
+const getSystemKeys = (): string[] => {
+  const keys: string[] = [];
+  if (process.env.GEMINI_API_KEY) keys.push(process.env.GEMINI_API_KEY);
+  for (let i = 1; i <= 9; i++) {
+    const k = process.env[`GEMINI_API_KEY_${i}`];
+    if (k) keys.push(k);
+  }
+  return keys;
+};
+
+const executeWithRotation = async <T>(operation: (ai: GoogleGenAI) => Promise<T>, customKey?: string): Promise<T> => {
+  const keys = customKey ? [customKey, ...getSystemKeys()] : getSystemKeys();
+  if (keys.length === 0) throw new Error("No API keys configured");
+
+  let lastError;
+  for (let i = 0; i < keys.length; i++) {
+    try {
+      const ai = new GoogleGenAI({ apiKey: keys[i] });
+      return await operation(ai);
+    } catch (err: any) {
+      lastError = err;
+      console.warn(`Gemini API call failed with key index ${i}, rotating...`, err);
+      // If it's a custom key and it failed, we might want to still try system keys, so we continue.
+    }
+  }
+  throw lastError;
+};
 
 const getText = (response: any): string => {
     if (response.text) return response.text;
@@ -15,7 +40,7 @@ const getText = (response: any): string => {
 };
 
 // 1. Generate Lesson Content (Bilingual, Multi-Dissection)
-export const enrichLessonData = async (lessonId: string, root: string, category: string, tier: number): Promise<Partial<Lesson>> => {
+export const enrichLessonData = async (lessonId: string, root: string, category: string, tier: number, customKey?: string): Promise<Partial<Lesson>> => {
   try {
     // 1. Check Firestore cache
     const docRef = doc(db, 'public_lessons', lessonId);
@@ -59,11 +84,11 @@ export const enrichLessonData = async (lessonId: string, root: string, category:
       }
     `;
 
-    const response = await ai.models.generateContent({
+    const response = await executeWithRotation((ai) => ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
       config: { responseMimeType: "application/json" }
-    });
+    }), customKey);
 
     const jsonStr = getText(response);
     const parsed = JSON.parse(jsonStr);
@@ -94,7 +119,7 @@ export const enrichLessonData = async (lessonId: string, root: string, category:
 };
 
 // 2. Generate 10 Questions (Pass mark 7/10)
-export const generateDrillQuestions = async (root: string, meaning: string): Promise<DrillQuestion[]> => {
+export const generateDrillQuestions = async (root: string, meaning: string, customKey?: string): Promise<DrillQuestion[]> => {
   try {
     const prompt = `
       Create 10 multiple-choice questions for the English root "${root}" (${meaning}).
@@ -115,11 +140,11 @@ export const generateDrillQuestions = async (root: string, meaning: string): Pro
       }
     `;
 
-    const response = await ai.models.generateContent({
+    const response = await executeWithRotation((ai) => ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
       config: { responseMimeType: "application/json" }
-    });
+    }), customKey);
 
     const jsonStr = getText(response);
     const parsed = JSON.parse(jsonStr);
@@ -130,7 +155,7 @@ export const generateDrillQuestions = async (root: string, meaning: string): Pro
 };
 
 // 3. User Sandbox Verification (Word Lab)
-export const verifyUserDerivative = async (root: string, userWord: string): Promise<{
+export const verifyUserDerivative = async (root: string, userWord: string, customKey?: string): Promise<{
     isValid: boolean;
     analysis: string;
     parts?: WordPart[];
@@ -154,11 +179,11 @@ export const verifyUserDerivative = async (root: string, userWord: string): Prom
           }
         `;
 
-        const response = await ai.models.generateContent({
+        const response = await executeWithRotation((ai) => ai.models.generateContent({
             model: 'gemini-3-flash-preview',
             contents: prompt,
             config: { responseMimeType: "application/json" }
-        });
+        }), customKey);
         
         return JSON.parse(getText(response));
     } catch (e) {
@@ -167,7 +192,7 @@ export const verifyUserDerivative = async (root: string, userWord: string): Prom
 };
 
 // 4. Remediation Plan (If failed drill)
-export const generateRemediation = async (root: string, missedQuestions: string[]): Promise<RemediationPlan> => {
+export const generateRemediation = async (root: string, missedQuestions: string[], customKey?: string): Promise<RemediationPlan> => {
     try {
         const prompt = `
           A student failed the quiz on root "${root}".
@@ -180,11 +205,11 @@ export const generateRemediation = async (root: string, missedQuestions: string[
           JSON Output.
         `;
         
-        const response = await ai.models.generateContent({
+        const response = await executeWithRotation((ai) => ai.models.generateContent({
             model: 'gemini-3-flash-preview',
             contents: prompt,
             config: { responseMimeType: "application/json" }
-        });
+        }), customKey);
 
         return JSON.parse(getText(response));
     } catch (e) {
@@ -192,8 +217,8 @@ export const generateRemediation = async (root: string, missedQuestions: string[
     }
 };
 
-export const getTierAssessment = async (tierId: number, roots: string[], isPro: boolean): Promise<DrillQuestion[]> => {
-  if (!isPro) {
+export const getTierAssessment = async (tierId: number, roots: string[], isPro: boolean, customKey?: string): Promise<DrillQuestion[]> => {
+  if (!isPro && !customKey) {
     try {
       const q = query(collection(db, 'public_assessments'), where('tierId', '==', tierId));
       const snapshot = await getDocs(q);
@@ -211,7 +236,7 @@ export const getTierAssessment = async (tierId: number, roots: string[], isPro: 
 
   // Generate new if Pro OR if public pool is empty
   console.log("Generating new assessment with AI");
-  const questions = await generateTierAssessment(tierId, roots);
+  const questions = await generateTierAssessment(tierId, roots, customKey);
 
   if (questions.length > 0) {
     try {
@@ -228,7 +253,7 @@ export const getTierAssessment = async (tierId: number, roots: string[], isPro: 
   return questions;
 };
 
-const generateTierAssessment = async (tierId: number, roots: string[]): Promise<DrillQuestion[]> => {
+const generateTierAssessment = async (tierId: number, roots: string[], customKey?: string): Promise<DrillQuestion[]> => {
   try {
     const sampledRoots = roots.sort(() => 0.5 - Math.random()).slice(0, 5);
     
@@ -250,7 +275,7 @@ const generateTierAssessment = async (tierId: number, roots: string[]): Promise<
       }
     `;
 
-    const response = await ai.models.generateContent({
+    const response = await executeWithRotation((ai) => ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
@@ -274,7 +299,7 @@ const generateTierAssessment = async (tierId: number, roots: string[]): Promise<
           }
         }
       }
-    });
+    }), customKey);
     
     const jsonStr = getText(response);
     const parsed = JSON.parse(jsonStr);
@@ -286,7 +311,7 @@ const generateTierAssessment = async (tierId: number, roots: string[]): Promise<
   }
 };
 
-export const analyzeMorphology = async (word: string): Promise<any> => {
+export const analyzeMorphology = async (word: string, customKey?: string): Promise<any> => {
     try {
         const prompt = `
           Analyze the morphology of the English word "${word}".
@@ -317,11 +342,11 @@ export const analyzeMorphology = async (word: string): Promise<any> => {
           }
         `;
 
-        const response = await ai.models.generateContent({
+        const response = await executeWithRotation((ai) => ai.models.generateContent({
             model: 'gemini-3-flash-preview',
             contents: prompt,
             config: { responseMimeType: "application/json" }
-        });
+        }), customKey);
 
         return JSON.parse(getText(response));
     } catch (e) {
@@ -330,7 +355,7 @@ export const analyzeMorphology = async (word: string): Promise<any> => {
     }
 };
 
-export const evaluateAssessment = async (tierId: number, score: number, total: number, missedConcepts: string[], timeTakenSeconds: number): Promise<string> => {
+export const evaluateAssessment = async (tierId: number, score: number, total: number, missedConcepts: string[], timeTakenSeconds: number, customKey?: string): Promise<string> => {
      try {
         const prompt = `
           Tier ${tierId} Exam Result:
@@ -344,7 +369,7 @@ export const evaluateAssessment = async (tierId: number, score: number, total: n
           2. If Time Taken is under 30 seconds and score is high, praise their speed.
           3. Format with bolding (**text**) for emphasis.
         `;
-        const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
+        const response = await executeWithRotation((ai) => ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt }), customKey);
         return getText(response);
     } catch (e) { return "Assessment complete."; }
 };

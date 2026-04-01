@@ -89,6 +89,42 @@ export const AdminPage: React.FC = () => {
     setAdminLoading(false);
   };
 
+  const handleRenewKey = async (userId: string) => {
+    if (firebaseUser?.email !== adminEmail) {
+      setError("You must be logged in with the admin Google account to renew keys.");
+      return;
+    }
+    setAdminLoading(true);
+    try {
+      const userRef = doc(db, 'users', userId);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        let newExpiresAt = new Date();
+        if (userData.proExpiresAt) {
+          const currentExpiresAt = new Date(userData.proExpiresAt);
+          if (currentExpiresAt > new Date()) {
+            newExpiresAt = currentExpiresAt;
+          }
+        }
+        newExpiresAt.setMonth(newExpiresAt.getMonth() + 1);
+        
+        await setDoc(userRef, {
+          isPro: true,
+          proExpiresAt: newExpiresAt.toISOString()
+        }, { merge: true });
+        
+        alert(`Successfully renewed Pro access for user ${userId} until ${newExpiresAt.toLocaleDateString()}`);
+      } else {
+        setError(`User ${userId} not found.`);
+      }
+    } catch (e) {
+      console.error("Failed to renew key", e);
+      setError("Failed to renew key. Check permissions.");
+    }
+    setAdminLoading(false);
+  };
+
   const loadConfig = async () => {
     setConfigLoading(true);
     try {
@@ -315,7 +351,17 @@ export const AdminPage: React.FC = () => {
                       {new Date(k.createdAt).toLocaleDateString()}
                     </td>
                     <td className="p-4 text-stone-400 text-sm font-mono">
-                      {k.usedBy || '-'}
+                      {k.usedBy ? (
+                        <div className="flex items-center gap-2">
+                          {k.usedBy}
+                          <button 
+                            onClick={() => handleRenewKey(k.usedBy)}
+                            className="text-amber-500 hover:text-amber-400 text-xs bg-amber-900/20 px-2 py-1 rounded"
+                          >
+                            Renew
+                          </button>
+                        </div>
+                      ) : '-'}
                     </td>
                   </tr>
                 ))}

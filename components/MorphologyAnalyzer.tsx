@@ -7,9 +7,10 @@ import { collection, addDoc, query, where, getDocs, deleteDoc, doc, orderBy } fr
 
 interface MorphologyAnalyzerProps {
   onBack: () => void;
+  customApiKey?: string;
 }
 
-export const MorphologyAnalyzer: React.FC<MorphologyAnalyzerProps> = ({ onBack }) => {
+export const MorphologyAnalyzer: React.FC<MorphologyAnalyzerProps> = ({ onBack, customApiKey }) => {
   const [word, setWord] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<MorphologyAnalysis | null>(null);
@@ -51,7 +52,7 @@ export const MorphologyAnalyzer: React.FC<MorphologyAnalyzerProps> = ({ onBack }
     setResult(null);
     
     try {
-      const analysis = await analyzeMorphology(word.trim());
+      const analysis = await analyzeMorphology(word.trim(), customApiKey);
       if (analysis) {
         setResult(analysis);
       } else {

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { CURRICULUM } from '../constants';
-import { Lesson, UserProgress, AppConfig } from '../types';
-import { Lock, Unlock, Star, Leaf, ChevronDown, ChevronUp, Book, LogOut, GraduationCap, CheckCircle, Search, Shield } from 'lucide-react';
+import { Lesson, UserProgress, AppConfig, User } from '../types';
+import { Lock, Unlock, Star, Leaf, ChevronDown, ChevronUp, Book, LogOut, GraduationCap, CheckCircle, Search, Shield, Key, X } from 'lucide-react';
 
 interface DashboardProps {
-  user: { username: string; isPro?: boolean };
+  user: User;
   progress: UserProgress;
   appConfig: AppConfig;
   onSelectLesson: (lesson: Lesson) => void;
@@ -13,16 +13,33 @@ interface DashboardProps {
   onGoToAnalyzer: () => void;
   onGoToUpgrade: () => void;
   onLogout: () => void;
+  onUpdateUser: (updates: Partial<User>) => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ user, progress, appConfig, onSelectLesson, onGoToGarden, onTakeAssessment, onGoToAnalyzer, onGoToUpgrade, onLogout }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ user, progress, appConfig, onSelectLesson, onGoToGarden, onTakeAssessment, onGoToAnalyzer, onGoToUpgrade, onLogout, onUpdateUser }) => {
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [tempApiKey, setTempApiKey] = useState(user.customApiKey || '');
 
   const toggleModule = (moduleId: string) => {
     setExpandedModules(prev => ({
       ...prev,
       [moduleId]: !prev[moduleId]
     }));
+  };
+
+  const handleSaveApiKey = async () => {
+    onUpdateUser({ customApiKey: tempApiKey });
+    setShowApiKeyModal(false);
+    if (user.uid) {
+      try {
+        const { doc, setDoc } = await import('firebase/firestore');
+        const { db } = await import('../firebase');
+        await setDoc(doc(db, 'users', user.uid), { customApiKey: tempApiKey }, { merge: true });
+      } catch (e) {
+        console.error("Failed to save API key to Firestore", e);
+      }
+    }
   };
 
   const isTierUnlocked = (tierId: number) => {
@@ -41,14 +58,56 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, progress, appConfig,
   };
 
   const hasFeature = (featureId: string) => {
-    if (user.isPro) {
-      return appConfig.proFeatures.includes(featureId) || appConfig.baseFeatures.includes(featureId);
+    if (appConfig.baseFeatures.includes(featureId)) return true;
+    if (appConfig.proFeatures.includes(featureId)) {
+      return user.isPro || !!user.customApiKey;
     }
-    return appConfig.baseFeatures.includes(featureId);
+    return false;
   };
 
   return (
     <div className="min-h-screen bg-stone-50 p-6 md:p-12">
+      {showApiKeyModal && (
+        <div className="fixed inset-0 bg-stone-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl relative">
+            <button 
+              onClick={() => setShowApiKeyModal(false)}
+              className="absolute top-4 right-4 text-stone-400 hover:text-stone-600"
+            >
+              <X size={24} />
+            </button>
+            <h2 className="text-2xl font-bold font-serif mb-2 flex items-center gap-2">
+              <Key className="text-amber-500" />
+              Custom API Key
+            </h2>
+            <p className="text-stone-600 mb-6 text-sm">
+              Enter your own Gemini API Key to unlock Pro AI features. Your key is stored securely in your profile.
+            </p>
+            <input 
+              type="password"
+              value={tempApiKey}
+              onChange={(e) => setTempApiKey(e.target.value)}
+              placeholder="AIzaSy..."
+              className="w-full p-3 border border-stone-300 rounded-xl mb-6 font-mono text-sm"
+            />
+            <div className="flex gap-4">
+              <button 
+                onClick={() => setShowApiKeyModal(false)}
+                className="flex-1 py-3 font-bold text-stone-600 hover:bg-stone-100 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleSaveApiKey}
+                className="flex-1 py-3 font-bold bg-amber-500 hover:bg-amber-600 text-stone-900 rounded-xl transition-colors"
+              >
+                Save Key
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-6xl mx-auto">
         
         {/* Header */}
@@ -82,7 +141,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, progress, appConfig,
 
              {hasFeature('morphology_analyzer') && (
                <button 
-                  onClick={onGoToAnalyzer}
+                  onClick={() => onGoToAnalyzer()}
                   className="bg-blue-100 hover:bg-blue-200 border border-blue-300 px-6 py-3 rounded-xl flex items-center gap-4 transition-all flex-1 md:flex-none"
               >
                   <div className="text-right">
@@ -105,6 +164,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, progress, appConfig,
                   <Leaf className="text-green-600" size={28} />
               </div>
              )}
+
+            <button 
+                onClick={() => setShowApiKeyModal(true)}
+                className="bg-stone-200 hover:bg-stone-300 p-3 rounded-xl transition-colors"
+                title="Custom API Key"
+            >
+                <Key size={24} className={user.customApiKey ? "text-amber-600" : "text-stone-600"} />
+            </button>
 
             <button 
                 onClick={onLogout}
