@@ -16,6 +16,8 @@ export default defineConfig(({ mode }) => {
             manualChunks: {
               vendor: ['react', 'react-dom'],
               firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
+              genai: ['@google/genai'],
+              d3: ['d3']
             }
           }
         }
