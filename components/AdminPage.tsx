@@ -131,7 +131,11 @@ export const AdminPage: React.FC = () => {
       const docRef = doc(db, 'config', 'features');
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        setConfig(docSnap.data() as AppConfig);
+        const data = docSnap.data() as AppConfig;
+        setConfig({
+          baseFeatures: data.baseFeatures || [],
+          proFeatures: data.proFeatures || []
+        });
       } else {
         const defaultConfig: AppConfig = {
           baseFeatures: ['tier_assessments', 'word_garden'],

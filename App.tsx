@@ -32,7 +32,11 @@ const App: React.FC = () => {
         const docRef = doc(db, 'config', 'features');
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-          setAppConfig(docSnap.data() as AppConfig);
+          const data = docSnap.data() as AppConfig;
+          setAppConfig({
+            baseFeatures: data.baseFeatures || [],
+            proFeatures: data.proFeatures || []
+          });
         } else {
           await setDoc(docRef, appConfig);
         }

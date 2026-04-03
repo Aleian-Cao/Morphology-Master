@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { CURRICULUM } from '../constants';
 import { Lesson, UserProgress, AppConfig, User } from '../types';
 import { Lock, Unlock, Star, Leaf, ChevronDown, ChevronUp, Book, LogOut, GraduationCap, CheckCircle, Search, Shield, Key, X } from 'lucide-react';
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 
 interface DashboardProps {
   user: User;
@@ -33,8 +35,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, progress, appConfig,
     setShowApiKeyModal(false);
     if (user.uid) {
       try {
-        const { doc, setDoc } = await import('firebase/firestore');
-        const { db } = await import('../firebase');
         await setDoc(doc(db, 'users', user.uid), { customApiKey: tempApiKey }, { merge: true });
       } catch (e) {
         console.error("Failed to save API key to Firestore", e);
@@ -58,8 +58,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, progress, appConfig,
   };
 
   const hasFeature = (featureId: string) => {
-    if (appConfig.baseFeatures.includes(featureId)) return true;
-    if (appConfig.proFeatures.includes(featureId)) {
+    if (appConfig.baseFeatures?.includes(featureId)) return true;
+    if (appConfig.proFeatures?.includes(featureId)) {
       return user.isPro || !!user.customApiKey;
     }
     return false;
