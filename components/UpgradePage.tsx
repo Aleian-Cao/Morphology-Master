@@ -6,11 +6,10 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 
 interface UpgradePageProps {
   user: User;
-  onBack: () => void;
   onUpgradeSuccess: () => void;
 }
 
-export const UpgradePage: React.FC<UpgradePageProps> = ({ user, onBack, onUpgradeSuccess }) => {
+export const UpgradePage: React.FC<UpgradePageProps> = ({ user, onUpgradeSuccess }) => {
   const [keyInput, setKeyInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -59,7 +58,6 @@ export const UpgradePage: React.FC<UpgradePageProps> = ({ user, onBack, onUpgrad
         setSuccess('Upgrade successful! Welcome to Pro.');
         setTimeout(() => {
           onUpgradeSuccess();
-          onBack();
         }, 2000);
       } else {
         setError('Invalid or already used key.');
@@ -79,14 +77,6 @@ export const UpgradePage: React.FC<UpgradePageProps> = ({ user, onBack, onUpgrad
   return (
     <div className="min-h-screen bg-stone-50 p-6 md:p-12">
       <div className="max-w-4xl mx-auto">
-        <button 
-          onClick={onBack}
-          className="flex items-center gap-2 text-stone-500 hover:text-stone-800 transition-colors mb-8"
-        >
-          <ArrowLeft size={20} />
-          <span>Back to Dashboard</span>
-        </button>
-
         <div className="mb-12">
           <h1 className="text-4xl font-serif font-bold text-stone-900 mb-4 flex items-center gap-3">
             <Shield className="text-amber-500" size={36} />

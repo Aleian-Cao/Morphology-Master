@@ -10,36 +10,18 @@ interface DashboardProps {
   progress: UserProgress;
   appConfig: AppConfig;
   onSelectLesson: (lesson: Lesson) => void;
-  onGoToGarden: () => void;
   onTakeAssessment: (tierId: number, roots: string[]) => void;
-  onGoToAnalyzer: () => void;
-  onGoToUpgrade: () => void;
-  onLogout: () => void;
   onUpdateUser: (updates: Partial<User>) => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ user, progress, appConfig, onSelectLesson, onGoToGarden, onTakeAssessment, onGoToAnalyzer, onGoToUpgrade, onLogout, onUpdateUser }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ user, progress, appConfig, onSelectLesson, onTakeAssessment, onUpdateUser }) => {
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
-  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
-  const [tempApiKey, setTempApiKey] = useState(user.customApiKey || '');
 
   const toggleModule = (moduleId: string) => {
     setExpandedModules(prev => ({
       ...prev,
       [moduleId]: !prev[moduleId]
     }));
-  };
-
-  const handleSaveApiKey = async () => {
-    onUpdateUser({ customApiKey: tempApiKey });
-    setShowApiKeyModal(false);
-    if (user.uid) {
-      try {
-        await setDoc(doc(db, 'users', user.uid), { customApiKey: tempApiKey }, { merge: true });
-      } catch (e) {
-        console.error("Failed to save API key to Firestore", e);
-      }
-    }
   };
 
   const isTierUnlocked = (tierId: number) => {
@@ -65,53 +47,29 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, progress, appConfig,
     return false;
   };
 
+  // Adaptive Learning Path Logic
+  const getRecommendedLesson = () => {
+    for (const tier of CURRICULUM) {
+      if (!isTierUnlocked(tier.id)) continue;
+      for (const module of tier.modules) {
+        for (const lesson of module.lessons) {
+          if (!progress.completedLessons?.includes(lesson.id)) {
+            return lesson;
+          }
+        }
+      }
+    }
+    return null;
+  };
+
+  const recommendedLesson = getRecommendedLesson();
+
   return (
     <div className="min-h-screen bg-stone-50 p-6 md:p-12">
-      {showApiKeyModal && (
-        <div className="fixed inset-0 bg-stone-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl relative">
-            <button 
-              onClick={() => setShowApiKeyModal(false)}
-              className="absolute top-4 right-4 text-stone-400 hover:text-stone-600"
-            >
-              <X size={24} />
-            </button>
-            <h2 className="text-2xl font-bold font-serif mb-2 flex items-center gap-2">
-              <Key className="text-amber-500" />
-              Custom API Key
-            </h2>
-            <p className="text-stone-600 mb-6 text-sm">
-              Enter your own Gemini API Key to unlock Pro AI features. Your key is stored securely in your profile.
-            </p>
-            <input 
-              type="password"
-              value={tempApiKey}
-              onChange={(e) => setTempApiKey(e.target.value)}
-              placeholder="AIzaSy..."
-              className="w-full p-3 border border-stone-300 rounded-xl mb-6 font-mono text-sm"
-            />
-            <div className="flex gap-4">
-              <button 
-                onClick={() => setShowApiKeyModal(false)}
-                className="flex-1 py-3 font-bold text-stone-600 hover:bg-stone-100 rounded-xl transition-colors"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleSaveApiKey}
-                className="flex-1 py-3 font-bold bg-amber-500 hover:bg-amber-600 text-stone-900 rounded-xl transition-colors"
-              >
-                Save Key
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-6">
           <div>
             <div className="flex items-center gap-3 mb-2">
                 <h1 className="text-4xl font-serif font-bold text-stone-900">Morphology Master</h1>
@@ -124,64 +82,29 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, progress, appConfig,
             </div>
             <p className="text-stone-500 text-lg">Welcome back, <span className="font-bold text-stone-800">{user.username}</span>.</p>
           </div>
-          
-          <div className="flex flex-wrap gap-4 w-full md:w-auto">
-             {!user.isPro && (
-               <button 
-                  onClick={onGoToUpgrade}
-                  className="bg-amber-100 hover:bg-amber-200 border border-amber-300 px-6 py-3 rounded-xl flex items-center gap-4 transition-all flex-1 md:flex-none"
-              >
-                  <div className="text-right">
-                  <p className="text-xs font-bold text-amber-800 uppercase tracking-widest">Upgrade</p>
-                  <p className="text-amber-900 font-bold">Get Pro</p>
-                  </div>
-                  <Star className="text-amber-600" size={28} />
-              </button>
-             )}
+        </div>
 
-             {hasFeature('morphology_analyzer') && (
-               <button 
-                  onClick={() => onGoToAnalyzer()}
-                  className="bg-blue-100 hover:bg-blue-200 border border-blue-300 px-6 py-3 rounded-xl flex items-center gap-4 transition-all flex-1 md:flex-none"
-              >
-                  <div className="text-right">
-                  <p className="text-xs font-bold text-blue-800 uppercase tracking-widest">Analyzer</p>
-                  <p className="text-blue-900 font-bold">Word Lab</p>
-                  </div>
-                  <Search className="text-blue-600" size={28} />
-              </button>
-             )}
-
-             {hasFeature('word_garden') && (
-               <div 
-                  onClick={onGoToGarden}
-                  className="cursor-pointer bg-green-100 hover:bg-green-200 border border-green-300 px-6 py-3 rounded-xl flex items-center gap-4 transition-all flex-1 md:flex-none"
-              >
-                  <div className="text-right">
-                  <p className="text-xs font-bold text-green-800 uppercase tracking-widest">Garden</p>
-                  <p className="text-green-900 font-bold">{progress.garden.trees} Plants</p>
-                  </div>
-                  <Leaf className="text-green-600" size={28} />
+        {/* Adaptive Learning Path Recommendation */}
+        {recommendedLesson && (
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 mb-12 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className="bg-blue-500 text-white p-4 rounded-xl shadow-inner">
+                <GraduationCap size={32} />
               </div>
-             )}
-
+              <div>
+                <p className="text-blue-600 font-bold text-sm uppercase tracking-wider mb-1">Recommended Next Step</p>
+                <h2 className="text-2xl font-serif font-bold text-stone-900">{recommendedLesson.title}</h2>
+                <p className="text-stone-600">Based on your progress, this is the optimal next root to learn.</p>
+              </div>
+            </div>
             <button 
-                onClick={() => setShowApiKeyModal(true)}
-                className="bg-stone-200 hover:bg-stone-300 p-3 rounded-xl transition-colors"
-                title="Custom API Key"
+              onClick={() => onSelectLesson(recommendedLesson)}
+              className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold transition-colors shadow-md"
             >
-                <Key size={24} className={user.customApiKey ? "text-amber-600" : "text-stone-600"} />
-            </button>
-
-            <button 
-                onClick={onLogout}
-                className="bg-stone-200 hover:bg-stone-300 p-3 rounded-xl transition-colors"
-                title="Logout"
-            >
-                <LogOut size={24} className="text-stone-600" />
+              Start Lesson
             </button>
           </div>
-        </div>
+        )}
 
         {/* Curriculum List */}
         <div className="space-y-16">

@@ -6,11 +6,10 @@ import { db, auth } from '../firebase';
 import { collection, addDoc, query, where, getDocs, deleteDoc, doc, orderBy } from 'firebase/firestore';
 
 interface MorphologyAnalyzerProps {
-  onBack: () => void;
   customApiKey?: string;
 }
 
-export const MorphologyAnalyzer: React.FC<MorphologyAnalyzerProps> = ({ onBack, customApiKey }) => {
+export const MorphologyAnalyzer: React.FC<MorphologyAnalyzerProps> = ({ customApiKey }) => {
   const [word, setWord] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<MorphologyAnalysis | null>(null);
@@ -187,13 +186,6 @@ export const MorphologyAnalyzer: React.FC<MorphologyAnalyzerProps> = ({ onBack, 
   return (
     <div className="min-h-screen bg-stone-50 p-6 md:p-12">
       <div className="max-w-4xl mx-auto">
-        <button 
-          onClick={onBack}
-          className="flex items-center gap-2 text-stone-500 hover:text-stone-800 mb-8 transition-colors"
-        >
-          <ArrowLeft size={20} /> Back to Dashboard
-        </button>
-
         <div className="flex items-center gap-4 mb-8">
           <div className="bg-blue-100 p-3 rounded-xl text-blue-600">
             <BookOpen size={32} />

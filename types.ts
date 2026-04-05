@@ -112,7 +112,9 @@ export enum AppView {
   GARDEN = 'GARDEN',
   ASSESSMENT = 'ASSESSMENT',
   ANALYZER = 'ANALYZER',
-  UPGRADE = 'UPGRADE'
+  UPGRADE = 'UPGRADE',
+  WORD_TREE = 'WORD_TREE',
+  PUZZLES = 'PUZZLES'
 }
 
 export interface MorphologyAnalysis {

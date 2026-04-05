@@ -7,22 +7,12 @@ interface WordGardenProps {
   onBack: () => void;
 }
 
-export const WordGarden: React.FC<WordGardenProps> = ({ progress, onBack }) => {
+export const WordGarden: React.FC<WordGardenProps> = ({ progress }) => {
   const treeCount = progress.garden?.trees || 0;
 
   return (
     <div className="min-h-screen bg-sky-100 relative overflow-hidden flex flex-col">
       
-      {/* Navigation */}
-      <div className="absolute top-6 left-6 z-20">
-        <button 
-          onClick={onBack}
-          className="bg-white/80 backdrop-blur p-3 rounded-full hover:bg-white shadow-sm transition-all text-stone-700"
-        >
-          <ArrowLeft size={24} />
-        </button>
-      </div>
-
       {/* Sky Decor */}
       <Sun className="absolute top-10 right-10 text-yellow-400 animate-pulse" size={80} />
       <Cloud className="absolute top-20 left-1/4 text-white opacity-80" size={64} />

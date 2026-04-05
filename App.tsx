@@ -7,13 +7,17 @@ import { WordGarden } from './components/WordGarden';
 import { LoginScreen } from './components/LoginScreen';
 import { TierAssessment } from './components/TierAssessment';
 import { MorphologyAnalyzer } from './components/MorphologyAnalyzer';
+import { WordTreePage } from './components/WordTreePage';
+import { LogicPuzzles } from './components/LogicPuzzles';
 import { UpgradePage } from './components/UpgradePage';
 import { AdminPage } from './components/AdminPage';
+import { Layout } from './components/Layout';
 import { auth, db } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { INITIAL_USER_PROGRESS } from './constants';
 import { AppConfig } from './types';
+import { Key, X } from 'lucide-react';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -21,6 +25,8 @@ const App: React.FC = () => {
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
   const [activeAssessment, setActiveAssessment] = useState<{tierId: number, roots: string[]} | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [tempApiKey, setTempApiKey] = useState('');
   const [appConfig, setAppConfig] = useState<AppConfig>({
     baseFeatures: ['tier_assessments', 'word_garden'],
     proFeatures: ['morphology_analyzer', 'ai_lesson_generation', 'text_to_speech']
@@ -106,6 +112,19 @@ const App: React.FC = () => {
   const handleUpdateUser = (updates: Partial<User>) => {
     if (user) {
       setUser({ ...user, ...updates });
+    }
+  };
+
+  const handleSaveApiKey = async () => {
+    if (!user) return;
+    handleUpdateUser({ customApiKey: tempApiKey });
+    setShowApiKeyModal(false);
+    if (user.uid) {
+      try {
+        await setDoc(doc(db, 'users', user.uid), { customApiKey: tempApiKey }, { merge: true });
+      } catch (e) {
+        console.error("Failed to save API key to Firestore", e);
+      }
     }
   };
 
@@ -211,42 +230,106 @@ const App: React.FC = () => {
       );
   }
 
-  if (view === AppView.ANALYZER) {
-      return <MorphologyAnalyzer onBack={() => setView(AppView.DASHBOARD)} customApiKey={user?.customApiKey} />;
+  if (view === AppView.LESSON && activeLesson) {
+    return (
+      <LessonFlow 
+        lesson={activeLesson} 
+        customApiKey={user?.customApiKey}
+        onComplete={handleLessonComplete} 
+        onExit={() => setView(AppView.DASHBOARD)} 
+      />
+    );
   }
 
   return (
     <div className="antialiased text-stone-900">
-      {view === AppView.DASHBOARD && (
-        <Dashboard 
-          user={user}
-          onUpdateUser={handleUpdateUser}
-          progress={user.progress} 
-          appConfig={appConfig}
-          onSelectLesson={handleLessonSelect} 
-          onGoToGarden={() => setView(AppView.GARDEN)} 
-          onTakeAssessment={handleTakeAssessment}
-          onGoToAnalyzer={() => setView(AppView.ANALYZER)}
-          onGoToUpgrade={() => setView(AppView.UPGRADE)}
-          onLogout={handleLogout}
-        />
+      {showApiKeyModal && (
+        <div className="fixed inset-0 bg-stone-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl relative">
+            <button 
+              onClick={() => setShowApiKeyModal(false)}
+              className="absolute top-4 right-4 text-stone-400 hover:text-stone-600"
+            >
+              <X size={24} />
+            </button>
+            <h2 className="text-2xl font-bold font-serif mb-2 flex items-center gap-2">
+              <Key className="text-amber-500" />
+              Custom API Key
+            </h2>
+            <p className="text-stone-600 mb-6 text-sm">
+              Enter your own Gemini API Key to unlock Pro AI features. Your key is stored securely in your profile.
+            </p>
+            <input 
+              type="password"
+              value={tempApiKey}
+              onChange={(e) => setTempApiKey(e.target.value)}
+              placeholder="AIzaSy..."
+              className="w-full p-3 border border-stone-300 rounded-xl mb-6 font-mono text-sm"
+            />
+            <div className="flex gap-4">
+              <button 
+                onClick={() => setShowApiKeyModal(false)}
+                className="flex-1 py-3 font-bold text-stone-600 hover:bg-stone-100 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleSaveApiKey}
+                className="flex-1 py-3 font-bold bg-amber-500 hover:bg-amber-600 text-stone-900 rounded-xl transition-colors"
+              >
+                Save Key
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
-      {view === AppView.LESSON && activeLesson && (
-        <LessonFlow 
-          lesson={activeLesson} 
-          customApiKey={user?.customApiKey}
-          onComplete={handleLessonComplete} 
-          onExit={() => setView(AppView.DASHBOARD)} 
-        />
-      )}
+      <Layout
+        user={user}
+        currentView={view}
+        onNavigate={setView}
+        onLogout={handleLogout}
+        onShowApiKeyModal={() => setShowApiKeyModal(true)}
+      >
+        {view === AppView.DASHBOARD && (
+          <Dashboard 
+            user={user}
+            onUpdateUser={handleUpdateUser}
+            progress={user.progress} 
+            appConfig={appConfig}
+            onSelectLesson={handleLessonSelect} 
+            onTakeAssessment={handleTakeAssessment}
+          />
+        )}
 
-      {view === AppView.GARDEN && (
-        <WordGarden 
-          progress={user.progress} 
-          onBack={() => setView(AppView.DASHBOARD)} 
-        />
-      )}
+        {view === AppView.GARDEN && (
+          <WordGarden 
+            progress={user.progress} 
+          />
+        )}
+
+        {view === AppView.ANALYZER && (
+          <MorphologyAnalyzer customApiKey={user?.customApiKey} />
+        )}
+
+        {view === AppView.WORD_TREE && (
+          <WordTreePage customApiKey={user?.customApiKey} />
+        )}
+
+        {view === AppView.PUZZLES && (
+          <LogicPuzzles customApiKey={user?.customApiKey} />
+        )}
+
+        {view === AppView.UPGRADE && (
+          <UpgradePage 
+              user={user} 
+              onUpgradeSuccess={() => {
+                setUser({ ...user, isPro: true });
+                setView(AppView.DASHBOARD);
+              }} 
+          />
+        )}
+      </Layout>
     </div>
   );
 };
