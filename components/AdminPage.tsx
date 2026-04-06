@@ -1,24 +1,49 @@
-import React, { useState, useEffect } from 'react';
-import { Shield, Key, Plus, Copy, Settings, GripVertical, Lock, LogIn } from 'lucide-react';
-import { db, auth } from '../firebase';
-import { doc, getDoc, setDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
-import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { AppConfig } from '../types';
+import React, { useState, useEffect } from "react";
+import {
+  Shield,
+  Key,
+  Plus,
+  Copy,
+  Settings,
+  GripVertical,
+  Lock,
+  LogIn,
+} from "lucide-react";
+import { db, auth } from "../firebase";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  collection,
+  getDocs,
+  query,
+  orderBy,
+} from "firebase/firestore";
+import {
+  signInWithPopup,
+  GoogleAuthProvider,
+  onAuthStateChanged,
+  User as FirebaseUser,
+} from "firebase/auth";
+import { AppConfig } from "../types";
 
 export const AdminPage: React.FC = () => {
-  const [password, setPassword] = useState('');
+  const [password, setPassword] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
-  const [error, setError] = useState('');
-  
+  const [error, setError] = useState("");
+
   const [adminKeys, setAdminKeys] = useState<any[]>([]);
   const [adminLoading, setAdminLoading] = useState(false);
-  
-  const [config, setConfig] = useState<AppConfig>({ baseFeatures: [], proFeatures: [] });
+
+  const [config, setConfig] = useState<AppConfig>({
+    baseFeatures: [],
+    proFeatures: [],
+  });
   const [configLoading, setConfigLoading] = useState(false);
 
-  const correctPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'admin123';
-  const adminEmail = '10a10caonguyenthanhan@gmail.com';
+  const correctPassword = import.meta.env.VITE_ADMIN_PASSWORD || "admin123";
+  const adminEmail = "10a10caonguyenthanhan@gmail.com";
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -40,9 +65,9 @@ export const AdminPage: React.FC = () => {
     e.preventDefault();
     if (password === correctPassword) {
       setIsAuthenticated(true);
-      setError('');
+      setError("");
     } else {
-      setError('Incorrect password');
+      setError("Incorrect password");
     }
   };
 
@@ -59,27 +84,32 @@ export const AdminPage: React.FC = () => {
   const loadAdminKeys = async () => {
     setAdminLoading(true);
     try {
-      const q = query(collection(db, 'pro_keys'), orderBy('createdAt', 'desc'));
+      const q = query(collection(db, "pro_keys"), orderBy("createdAt", "desc"));
       const snapshot = await getDocs(q);
-      setAdminKeys(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+      setAdminKeys(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
     } catch (e) {
       console.error("Failed to load keys", e);
-      setError("Failed to load keys. Ensure you are logged in with the admin Google account.");
+      setError(
+        "Failed to load keys. Ensure you are logged in with the admin Google account.",
+      );
     }
     setAdminLoading(false);
   };
 
   const handleGenerateKey = async () => {
     if (firebaseUser?.email !== adminEmail) {
-      setError("You must be logged in with the admin Google account to generate keys.");
+      setError(
+        "You must be logged in with the admin Google account to generate keys.",
+      );
       return;
     }
     setAdminLoading(true);
     try {
-      const newKey = 'PRO-' + Math.random().toString(36).substring(2, 10).toUpperCase();
-      await setDoc(doc(db, 'pro_keys', newKey), {
+      const newKey =
+        "PRO-" + Math.random().toString(36).substring(2, 10).toUpperCase();
+      await setDoc(doc(db, "pro_keys", newKey), {
         used: false,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       });
       await loadAdminKeys();
     } catch (e) {
@@ -91,12 +121,14 @@ export const AdminPage: React.FC = () => {
 
   const handleRenewKey = async (userId: string) => {
     if (firebaseUser?.email !== adminEmail) {
-      setError("You must be logged in with the admin Google account to renew keys.");
+      setError(
+        "You must be logged in with the admin Google account to renew keys.",
+      );
       return;
     }
     setAdminLoading(true);
     try {
-      const userRef = doc(db, 'users', userId);
+      const userRef = doc(db, "users", userId);
       const userSnap = await getDoc(userRef);
       if (userSnap.exists()) {
         const userData = userSnap.data();
@@ -108,13 +140,19 @@ export const AdminPage: React.FC = () => {
           }
         }
         newExpiresAt.setMonth(newExpiresAt.getMonth() + 1);
-        
-        await setDoc(userRef, {
-          isPro: true,
-          proExpiresAt: newExpiresAt.toISOString()
-        }, { merge: true });
-        
-        alert(`Successfully renewed Pro access for user ${userId} until ${newExpiresAt.toLocaleDateString()}`);
+
+        await setDoc(
+          userRef,
+          {
+            isPro: true,
+            proExpiresAt: newExpiresAt.toISOString(),
+          },
+          { merge: true },
+        );
+
+        alert(
+          `Successfully renewed Pro access for user ${userId} until ${newExpiresAt.toLocaleDateString()}`,
+        );
       } else {
         setError(`User ${userId} not found.`);
       }
@@ -128,18 +166,22 @@ export const AdminPage: React.FC = () => {
   const loadConfig = async () => {
     setConfigLoading(true);
     try {
-      const docRef = doc(db, 'config', 'features');
+      const docRef = doc(db, "config", "features");
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         const data = docSnap.data() as AppConfig;
         setConfig({
           baseFeatures: data.baseFeatures || [],
-          proFeatures: data.proFeatures || []
+          proFeatures: data.proFeatures || [],
         });
       } else {
         const defaultConfig: AppConfig = {
-          baseFeatures: ['tier_assessments', 'word_garden'],
-          proFeatures: ['morphology_analyzer', 'ai_lesson_generation', 'text_to_speech']
+          baseFeatures: ["tier_assessments", "word_garden"],
+          proFeatures: [
+            "morphology_analyzer",
+            "ai_lesson_generation",
+            "text_to_speech",
+          ],
         };
         await setDoc(docRef, defaultConfig);
         setConfig(defaultConfig);
@@ -152,29 +194,35 @@ export const AdminPage: React.FC = () => {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert('Copied to clipboard!');
+    alert("Copied to clipboard!");
   };
 
-  const onDragStart = (e: React.DragEvent, feature: string, source: 'base' | 'pro') => {
-    e.dataTransfer.setData('feature', feature);
-    e.dataTransfer.setData('source', source);
+  const onDragStart = (
+    e: React.DragEvent,
+    feature: string,
+    source: "base" | "pro",
+  ) => {
+    e.dataTransfer.setData("feature", feature);
+    e.dataTransfer.setData("source", source);
   };
 
-  const onDrop = async (e: React.DragEvent, target: 'base' | 'pro') => {
+  const onDrop = async (e: React.DragEvent, target: "base" | "pro") => {
     e.preventDefault();
-    const feature = e.dataTransfer.getData('feature');
-    const source = e.dataTransfer.getData('source') as 'base' | 'pro';
-    
+    const feature = e.dataTransfer.getData("feature");
+    const source = e.dataTransfer.getData("source") as "base" | "pro";
+
     if (!feature || !source || source === target) return;
 
     const newConfig = { ...config };
-    newConfig[source === 'base' ? 'baseFeatures' : 'proFeatures'] = newConfig[source === 'base' ? 'baseFeatures' : 'proFeatures'].filter(f => f !== feature);
-    newConfig[target === 'base' ? 'baseFeatures' : 'proFeatures'].push(feature);
+    newConfig[source === "base" ? "baseFeatures" : "proFeatures"] = newConfig[
+      source === "base" ? "baseFeatures" : "proFeatures"
+    ].filter((f) => f !== feature);
+    newConfig[target === "base" ? "baseFeatures" : "proFeatures"].push(feature);
 
     setConfig(newConfig);
-    
+
     try {
-      await setDoc(doc(db, 'config', 'features'), newConfig);
+      await setDoc(doc(db, "config", "features"), newConfig);
     } catch (err) {
       console.error("Failed to save config", err);
     }
@@ -193,19 +241,23 @@ export const AdminPage: React.FC = () => {
               <Lock className="text-amber-500" size={32} />
             </div>
           </div>
-          <h1 className="text-2xl font-bold text-stone-100 text-center mb-6">Admin Access</h1>
+          <h1 className="text-2xl font-bold text-stone-100 text-center mb-6">
+            Admin Access
+          </h1>
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <input 
-                type="password" 
+              <input
+                type="password"
                 placeholder="Enter Admin Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full p-4 bg-stone-950 border border-stone-700 text-stone-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
-            {error && <p className="text-red-400 text-sm text-center">{error}</p>}
-            <button 
+            {error && (
+              <p className="text-red-400 text-sm text-center">{error}</p>
+            )}
+            <button
               type="submit"
               className="w-full bg-amber-500 hover:bg-amber-600 text-stone-900 font-bold py-4 rounded-xl transition-colors"
             >
@@ -218,7 +270,7 @@ export const AdminPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-stone-950 text-stone-100 p-6 md:p-12">
+    <div className="p-6 md:p-8 bg-stone-950 text-stone-100 min-h-screen">
       <div className="max-w-6xl mx-auto space-y-12">
         <div className="flex items-center gap-4 border-b border-stone-800 pb-6">
           <Shield className="text-amber-500" size={40} />
@@ -231,58 +283,73 @@ export const AdminPage: React.FC = () => {
             <Settings className="text-amber-500" />
             Feature Management (Drag & Drop)
           </h2>
-          <p className="text-stone-400 mb-8">Drag features between Base and Pro tiers to instantly update access across the app.</p>
-          
+          <p className="text-stone-400 mb-8">
+            Drag features between Base and Pro tiers to instantly update access
+            across the app.
+          </p>
+
           {configLoading ? (
             <div className="text-stone-500">Loading configuration...</div>
           ) : (
             <div className="grid md:grid-cols-2 gap-8">
               {/* Base Features */}
-              <div 
+              <div
                 className="bg-stone-950 border border-stone-700 rounded-xl p-6 min-h-[300px]"
-                onDrop={(e) => onDrop(e, 'base')}
+                onDrop={(e) => onDrop(e, "base")}
                 onDragOver={onDragOver}
               >
-                <h3 className="text-lg font-bold text-stone-300 mb-4 border-b border-stone-800 pb-2">Base Features</h3>
+                <h3 className="text-lg font-bold text-stone-300 mb-4 border-b border-stone-800 pb-2">
+                  Base Features
+                </h3>
                 <div className="space-y-3">
-                  {config.baseFeatures.map(feature => (
-                    <div 
+                  {config.baseFeatures.map((feature) => (
+                    <div
                       key={feature}
                       draggable
-                      onDragStart={(e) => onDragStart(e, feature, 'base')}
+                      onDragStart={(e) => onDragStart(e, feature, "base")}
                       className="bg-stone-800 p-4 rounded-lg flex items-center gap-3 cursor-grab hover:bg-stone-700 transition-colors border border-stone-700"
                     >
                       <GripVertical className="text-stone-500" size={18} />
-                      <span className="font-mono text-sm text-stone-200">{feature}</span>
+                      <span className="font-mono text-sm text-stone-200">
+                        {feature}
+                      </span>
                     </div>
                   ))}
                   {config.baseFeatures.length === 0 && (
-                    <div className="text-stone-600 text-sm italic text-center py-4">Drag features here</div>
+                    <div className="text-stone-600 text-sm italic text-center py-4">
+                      Drag features here
+                    </div>
                   )}
                 </div>
               </div>
 
               {/* Pro Features */}
-              <div 
+              <div
                 className="bg-stone-950 border border-amber-900/30 rounded-xl p-6 min-h-[300px]"
-                onDrop={(e) => onDrop(e, 'pro')}
+                onDrop={(e) => onDrop(e, "pro")}
                 onDragOver={onDragOver}
               >
-                <h3 className="text-lg font-bold text-amber-500 mb-4 border-b border-stone-800 pb-2">Pro Features</h3>
+                <h3 className="text-lg font-bold text-amber-500 mb-4 border-b border-stone-800 pb-2">
+                  Pro Features
+                </h3>
                 <div className="space-y-3">
-                  {config.proFeatures.map(feature => (
-                    <div 
+                  {config.proFeatures.map((feature) => (
+                    <div
                       key={feature}
                       draggable
-                      onDragStart={(e) => onDragStart(e, feature, 'pro')}
+                      onDragStart={(e) => onDragStart(e, feature, "pro")}
                       className="bg-amber-900/20 p-4 rounded-lg flex items-center gap-3 cursor-grab hover:bg-amber-900/40 transition-colors border border-amber-900/50"
                     >
                       <GripVertical className="text-amber-600" size={18} />
-                      <span className="font-mono text-sm text-amber-200">{feature}</span>
+                      <span className="font-mono text-sm text-amber-200">
+                        {feature}
+                      </span>
                     </div>
                   ))}
                   {config.proFeatures.length === 0 && (
-                    <div className="text-stone-600 text-sm italic text-center py-4">Drag features here</div>
+                    <div className="text-stone-600 text-sm italic text-center py-4">
+                      Drag features here
+                    </div>
                   )}
                 </div>
               </div>
@@ -299,7 +366,7 @@ export const AdminPage: React.FC = () => {
             </h2>
             <div className="flex items-center gap-4">
               {firebaseUser?.email !== adminEmail && (
-                <button 
+                <button
                   onClick={handleFirebaseLogin}
                   className="bg-stone-800 hover:bg-stone-700 text-stone-200 font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors border border-stone-700"
                 >
@@ -307,11 +374,15 @@ export const AdminPage: React.FC = () => {
                   Login with Google
                 </button>
               )}
-              <button 
+              <button
                 onClick={handleGenerateKey}
                 disabled={adminLoading || firebaseUser?.email !== adminEmail}
                 className="bg-amber-500 hover:bg-amber-600 disabled:bg-stone-700 disabled:text-stone-500 text-stone-900 font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors"
-                title={firebaseUser?.email !== adminEmail ? "Please login with admin Google account first" : ""}
+                title={
+                  firebaseUser?.email !== adminEmail
+                    ? "Please login with admin Google account first"
+                    : ""
+                }
               >
                 <Plus size={20} />
                 Generate New Key
@@ -336,19 +407,29 @@ export const AdminPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-800">
-                {adminKeys.map(k => (
-                  <tr key={k.id} className="hover:bg-stone-900 transition-colors">
+                {adminKeys.map((k) => (
+                  <tr
+                    key={k.id}
+                    className="hover:bg-stone-900 transition-colors"
+                  >
                     <td className="p-4 font-mono text-amber-400 flex items-center gap-2">
                       {k.id}
-                      <button onClick={() => copyToClipboard(k.id)} className="text-stone-500 hover:text-stone-300">
+                      <button
+                        onClick={() => copyToClipboard(k.id)}
+                        className="text-stone-500 hover:text-stone-300"
+                      >
                         <Copy size={16} />
                       </button>
                     </td>
                     <td className="p-4">
                       {k.used ? (
-                        <span className="px-2 py-1 bg-red-900/30 text-red-400 rounded text-xs font-bold border border-red-900/50">USED</span>
+                        <span className="px-2 py-1 bg-red-900/30 text-red-400 rounded text-xs font-bold border border-red-900/50">
+                          USED
+                        </span>
                       ) : (
-                        <span className="px-2 py-1 bg-green-900/30 text-green-400 rounded text-xs font-bold border border-green-900/50">AVAILABLE</span>
+                        <span className="px-2 py-1 bg-green-900/30 text-green-400 rounded text-xs font-bold border border-green-900/50">
+                          AVAILABLE
+                        </span>
                       )}
                     </td>
                     <td className="p-4 text-stone-400 text-sm">
@@ -358,14 +439,16 @@ export const AdminPage: React.FC = () => {
                       {k.usedBy ? (
                         <div className="flex items-center gap-2">
                           {k.usedBy}
-                          <button 
+                          <button
                             onClick={() => handleRenewKey(k.usedBy)}
                             className="text-amber-500 hover:text-amber-400 text-xs bg-amber-900/20 px-2 py-1 rounded"
                           >
                             Renew
                           </button>
                         </div>
-                      ) : '-'}
+                      ) : (
+                        "-"
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -380,7 +463,6 @@ export const AdminPage: React.FC = () => {
             </table>
           </div>
         </div>
-
       </div>
     </div>
   );

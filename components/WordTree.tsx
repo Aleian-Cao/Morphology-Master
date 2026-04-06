@@ -1,20 +1,28 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
+
+interface DerivativeNode {
+  word: string;
+  definition?: string;
+  definition_vi?: string;
+}
 
 interface WordTreeProps {
   root: string;
-  derivatives: string[];
+  derivatives: DerivativeNode[];
   onNodeClick: (word: string) => void;
   selectedWord: string | null;
 }
 
 interface TreeNode {
   name: string;
+  data?: DerivativeNode;
   children?: TreeNode[];
 }
 
 export const WordTree: React.FC<WordTreeProps> = ({ root, derivatives, onNodeClick, selectedWord }) => {
   const svgRef = useRef<SVGSVGElement>(null);
+  const [tooltip, setTooltip] = useState<{ show: boolean, x: number, y: number, data: DerivativeNode | null }>({ show: false, x: 0, y: 0, data: null });
 
   useEffect(() => {
     if (!svgRef.current) return;
@@ -28,7 +36,7 @@ export const WordTree: React.FC<WordTreeProps> = ({ root, derivatives, onNodeCli
 
     const data: TreeNode = {
       name: root,
-      children: derivatives?.map(d => ({ name: d })) || []
+      children: derivatives?.map(d => ({ name: d.word, data: d })) || []
     };
 
     const svg = d3.select(svgRef.current)
@@ -62,6 +70,22 @@ export const WordTree: React.FC<WordTreeProps> = ({ root, derivatives, onNodeCli
       .style("cursor", "pointer")
       .on("click", (event, d) => {
           onNodeClick(d.data.name);
+      })
+      .on("mouseenter", (event, d) => {
+        if (d.data.data) {
+          setTooltip({
+            show: true,
+            x: event.pageX,
+            y: event.pageY,
+            data: d.data.data
+          });
+        }
+      })
+      .on("mousemove", (event) => {
+        setTooltip(prev => ({ ...prev, x: event.pageX, y: event.pageY }));
+      })
+      .on("mouseleave", () => {
+        setTooltip(prev => ({ ...prev, show: false }));
       });
 
     // Node Circles
@@ -91,8 +115,18 @@ export const WordTree: React.FC<WordTreeProps> = ({ root, derivatives, onNodeCli
   }, [root, derivatives, selectedWord]);
 
   return (
-    <div className="w-full flex justify-center bg-white rounded-lg p-4 border border-stone-200 shadow-inner">
+    <div className="w-full flex justify-center bg-white rounded-lg p-4 border border-stone-200 shadow-inner relative">
       <svg ref={svgRef} className="w-full h-auto max-w-2xl" />
+      {tooltip.show && tooltip.data && (
+        <div 
+          className="fixed z-50 bg-stone-900 text-white p-3 rounded-lg shadow-xl max-w-xs pointer-events-none transform -translate-x-1/2 -translate-y-full mt-[-10px]"
+          style={{ left: tooltip.x, top: tooltip.y }}
+        >
+          <p className="font-bold text-orange-400 mb-1">{tooltip.data.word}</p>
+          {tooltip.data.definition && <p className="text-sm text-stone-300">{tooltip.data.definition}</p>}
+          {tooltip.data.definition_vi && <p className="text-sm text-stone-400 italic mt-1">{tooltip.data.definition_vi}</p>}
+        </div>
+      )}
     </div>
   );
 };

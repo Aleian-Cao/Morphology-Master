@@ -11,7 +11,7 @@ export const WordGarden: React.FC<WordGardenProps> = ({ progress }) => {
   const treeCount = progress.garden?.trees || 0;
 
   return (
-    <div className="min-h-screen bg-sky-100 relative overflow-hidden flex flex-col">
+    <div className="h-full bg-sky-100 relative overflow-hidden flex flex-col">
       
       {/* Sky Decor */}
       <Sun className="absolute top-10 right-10 text-yellow-400 animate-pulse" size={80} />

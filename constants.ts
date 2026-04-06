@@ -214,5 +214,6 @@ export const INITIAL_USER_PROGRESS: UserProgress = {
     trees: 0,
     level: 1
   },
-  assessments: []
+  assessments: [],
+  achievements: []
 };

@@ -71,6 +71,14 @@ export interface TierAssessmentResult {
   date: string;
 }
 
+export interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  unlockedAt: string;
+}
+
 export interface UserProgress {
   xp: number;
   completedLessons: string[];
@@ -80,6 +88,7 @@ export interface UserProgress {
     level: number;
   };
   assessments: TierAssessmentResult[];
+  achievements?: Achievement[];
 }
 
 export interface User {
@@ -114,7 +123,8 @@ export enum AppView {
   ANALYZER = 'ANALYZER',
   UPGRADE = 'UPGRADE',
   WORD_TREE = 'WORD_TREE',
-  PUZZLES = 'PUZZLES'
+  PUZZLES = 'PUZZLES',
+  PROFILE = 'PROFILE'
 }
 
 export interface MorphologyAnalysis {

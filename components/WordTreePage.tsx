@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Search, Loader2, Network, Puzzle, Languages, Check, X } from 'lucide-react';
 import { GoogleGenAI, Type } from '@google/genai';
+import { WordTree } from './WordTree';
 
 interface WordTreePageProps {
   customApiKey?: string;
@@ -151,7 +152,7 @@ Include at least 6-10 valid words in the validWords array.`;
   };
 
   return (
-    <div className="min-h-screen bg-stone-50 p-6 md:p-12">
+    <div className="p-6 md:p-8">
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center gap-4 mb-8">
           <div className="bg-emerald-100 p-3 rounded-xl text-emerald-600">
@@ -313,6 +314,20 @@ Include at least 6-10 valid words in the validWords array.`;
             {/* Valid Words List */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200">
               <h2 className="text-xl font-bold font-serif text-stone-900 mb-6">Word Family Network</h2>
+              
+              <div className="mb-8">
+                <WordTree 
+                  root={treeData.root}
+                  derivatives={treeData.validWords.map(w => ({
+                    word: w.word,
+                    definition_vi: w.meaning_vi,
+                    definition: w.formula
+                  }))}
+                  onNodeClick={() => {}}
+                  selectedWord={null}
+                />
+              </div>
+
               <div className="grid md:grid-cols-2 gap-4">
                 {treeData.validWords.map((w, i) => (
                   <div key={i} className="p-4 bg-stone-50 rounded-xl border border-stone-100 hover:border-emerald-200 transition-colors">

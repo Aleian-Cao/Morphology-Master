@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Puzzle, Loader2, Brain, Trophy, ArrowRight, CheckCircle2, XCircle } from 'lucide-react';
 import { GoogleGenAI, Type } from '@google/genai';
+import { User } from '../types';
 
 interface LogicPuzzlesProps {
   customApiKey?: string;
+  user: User;
+  onProgressUpdate: (xpGained: number) => void;
 }
 
 interface PuzzleData {
@@ -16,13 +19,12 @@ interface PuzzleData {
   explanation_vi: string;
 }
 
-export const LogicPuzzles: React.FC<LogicPuzzlesProps> = ({ customApiKey }) => {
+export const LogicPuzzles: React.FC<LogicPuzzlesProps> = ({ customApiKey, user, onProgressUpdate }) => {
   const [loading, setLoading] = useState(false);
   const [puzzle, setPuzzle] = useState<PuzzleData | null>(null);
   const [userAnswer, setUserAnswer] = useState('');
   const [result, setResult] = useState<'correct' | 'incorrect' | null>(null);
   const [error, setError] = useState('');
-  const [score, setScore] = useState(0);
 
   const generatePuzzle = async () => {
     setLoading(true);
@@ -94,12 +96,12 @@ Return a JSON object matching this schema:
     setResult(isCorrect ? 'correct' : 'incorrect');
     
     if (isCorrect) {
-      setScore(s => s + 100);
+      onProgressUpdate(100);
     }
   };
 
   return (
-    <div className="min-h-screen bg-stone-50 p-6 md:p-12">
+    <div className="p-6 md:p-8">
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
@@ -113,7 +115,7 @@ Return a JSON object matching this schema:
           </div>
           <div className="bg-white px-6 py-3 rounded-xl shadow-sm border border-stone-200 flex items-center gap-3">
             <Trophy className="text-amber-500" size={24} />
-            <span className="text-xl font-bold text-stone-800">{score} XP</span>
+            <span className="text-xl font-bold text-stone-800">{user.progress.xp} XP</span>
           </div>
         </div>
 

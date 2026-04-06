@@ -65,23 +65,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, progress, appConfig,
   const recommendedLesson = getRecommendedLesson();
 
   return (
-    <div className="min-h-screen bg-stone-50 p-6 md:p-12">
+    <div className="p-6 md:p-8">
       <div className="max-w-5xl mx-auto">
         
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-6">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-4xl font-serif font-bold text-stone-900">Morphology Master</h1>
-                <span className="text-stone-400 text-sm font-mono px-2 py-1 bg-stone-100 rounded">v2.0</span>
-                {user.isPro && (
-                  <span className="flex items-center gap-1 text-amber-600 text-sm font-bold px-2 py-1 bg-amber-100 rounded-full">
-                    <Shield size={14} /> PRO
-                  </span>
-                )}
-            </div>
-            <p className="text-stone-500 text-lg">Welcome back, <span className="font-bold text-stone-800">{user.username}</span>.</p>
-          </div>
+        <div className="mb-8">
+          <h1 className="text-3xl font-serif font-bold text-stone-900 mb-2">Welcome back, {user.username}!</h1>
+          <p className="text-stone-500 text-lg">Ready to continue your morphological journey?</p>
         </div>
 
         {/* Adaptive Learning Path Recommendation */}

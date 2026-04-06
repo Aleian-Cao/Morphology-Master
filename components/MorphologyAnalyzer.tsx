@@ -15,9 +15,18 @@ export const MorphologyAnalyzer: React.FC<MorphologyAnalyzerProps> = ({ customAp
   const [result, setResult] = useState<MorphologyAnalysis | null>(null);
   const [savedAnalyses, setSavedAnalyses] = useState<(MorphologyAnalysis & { id: string })[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
   useEffect(() => {
     fetchHistory();
+    const savedRecent = localStorage.getItem('recentSearches');
+    if (savedRecent) {
+      try {
+        setRecentSearches(JSON.parse(savedRecent));
+      } catch (e) {
+        console.error(e);
+      }
+    }
   }, []);
 
   const fetchHistory = async () => {
@@ -45,15 +54,19 @@ export const MorphologyAnalyzer: React.FC<MorphologyAnalyzerProps> = ({ customAp
     }
   };
 
-  const handleAnalyze = async () => {
-    if (!word.trim()) return;
+  const handleAnalyze = async (wordToAnalyze: string = word) => {
+    if (!wordToAnalyze.trim()) return;
+    setWord(wordToAnalyze);
     setLoading(true);
     setResult(null);
     
     try {
-      const analysis = await analyzeMorphology(word.trim(), customApiKey);
+      const analysis = await analyzeMorphology(wordToAnalyze.trim(), customApiKey);
       if (analysis) {
         setResult(analysis);
+        const newRecent = [wordToAnalyze.trim(), ...recentSearches.filter(w => w.toLowerCase() !== wordToAnalyze.trim().toLowerCase())].slice(0, 5);
+        setRecentSearches(newRecent);
+        localStorage.setItem('recentSearches', JSON.stringify(newRecent));
       } else {
         alert("Failed to analyze the word. Please try again.");
       }
@@ -105,7 +118,19 @@ export const MorphologyAnalyzer: React.FC<MorphologyAnalyzerProps> = ({ customAp
       <div className="flex justify-between items-start mb-4">
         <div>
           <div className="flex items-center gap-3">
-            <h2 className="text-3xl font-serif font-bold text-stone-900">{analysis.word}</h2>
+            <h2 className="text-3xl font-serif font-bold text-stone-900 flex items-center">
+              {analysis.parts && analysis.parts.length > 0 ? (
+                analysis.parts.map((part, idx) => (
+                  <span key={idx} className={
+                    part.type === 'PREFIX' ? 'text-blue-600' :
+                    part.type === 'ROOT' ? 'text-orange-600' :
+                    'text-purple-600'
+                  }>{part.text}</span>
+                ))
+              ) : (
+                analysis.word
+              )}
+            </h2>
             <button 
               onClick={() => handleSpeak(analysis.word)}
               className="p-2 text-stone-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
@@ -184,7 +209,7 @@ export const MorphologyAnalyzer: React.FC<MorphologyAnalyzerProps> = ({ customAp
   );
 
   return (
-    <div className="min-h-screen bg-stone-50 p-6 md:p-12">
+    <div className="p-6 md:p-8">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center gap-4 mb-8">
           <div className="bg-blue-100 p-3 rounded-xl text-blue-600">
@@ -197,25 +222,44 @@ export const MorphologyAnalyzer: React.FC<MorphologyAnalyzerProps> = ({ customAp
         </div>
 
         {/* Search Input */}
-        <div className="flex gap-4 mb-8">
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" size={20} />
-            <input 
-              type="text"
-              value={word}
-              onChange={(e) => setWord(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
-              placeholder="Enter an English word (e.g., 'unbelievable', 'democracy')"
-              className="w-full pl-12 pr-4 py-4 rounded-xl border border-stone-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-lg shadow-sm transition-all"
-            />
+        <div className="flex flex-col gap-4 mb-8">
+          <div className="flex gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" size={20} />
+              <input 
+                type="text"
+                value={word}
+                onChange={(e) => setWord(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAnalyze(word)}
+                placeholder="Enter an English word (e.g., 'unbelievable', 'democracy')"
+                className="w-full pl-12 pr-4 py-4 rounded-xl border border-stone-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-lg shadow-sm transition-all"
+              />
+            </div>
+            <button 
+              onClick={() => handleAnalyze(word)}
+              disabled={loading || !word.trim()}
+              className="bg-stone-900 hover:bg-stone-800 text-white px-8 py-4 rounded-xl font-bold transition-colors disabled:opacity-50 flex items-center gap-2"
+            >
+              {loading ? <Loader2 className="animate-spin" size={20} /> : 'Analyze'}
+            </button>
           </div>
-          <button 
-            onClick={handleAnalyze}
-            disabled={loading || !word.trim()}
-            className="bg-stone-900 hover:bg-stone-800 text-white px-8 py-4 rounded-xl font-bold transition-colors disabled:opacity-50 flex items-center gap-2"
-          >
-            {loading ? <Loader2 className="animate-spin" size={20} /> : 'Analyze'}
-          </button>
+          
+          {recentSearches.length > 0 && (
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-stone-500 font-medium">Recent:</span>
+              <div className="flex flex-wrap gap-2">
+                {recentSearches.map((w, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleAnalyze(w)}
+                    className="px-3 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-full transition-colors"
+                  >
+                    {w}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Current Result */}
