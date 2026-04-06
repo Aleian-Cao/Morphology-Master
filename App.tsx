@@ -12,6 +12,7 @@ import { LogicPuzzles } from "./components/LogicPuzzles";
 import { ProfilePage } from "./components/ProfilePage";
 import { UpgradePage } from "./components/UpgradePage";
 import { AdminPage } from "./components/AdminPage";
+import { Flashcards } from "./components/Flashcards";
 import { Layout } from "./components/Layout";
 import { auth, db } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -386,6 +387,19 @@ const App: React.FC = () => {
           <LogicPuzzles 
             customApiKey={user?.customApiKey} 
             user={user}
+            onProgressUpdate={(xpGained) => {
+              const newProgress = { ...user.progress };
+              newProgress.xp += xpGained;
+              checkAchievements(newProgress);
+              saveUserProgress(user.uid!, newProgress);
+              setUser({ ...user, progress: newProgress });
+            }}
+          />
+        )}
+
+        {view === AppView.FLASHCARDS && (
+          <Flashcards 
+            progress={user.progress}
             onProgressUpdate={(xpGained) => {
               const newProgress = { ...user.progress };
               newProgress.xp += xpGained;

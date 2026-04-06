@@ -13,7 +13,8 @@ import {
   Library,
   Sprout,
   Trophy,
-  Zap
+  Zap,
+  Layers
 } from 'lucide-react';
 
 interface ProfilePageProps {
@@ -158,6 +159,13 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ user, appConfig, onLog
               <div>
                 <h3 className="text-lg font-bold text-stone-900">Word Garden</h3>
                 <p className="text-stone-600">Review your learned roots. Plant seeds, water them through spaced repetition reviews, and grow your vocabulary forest.</p>
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <div className="bg-blue-100 p-3 rounded-xl h-fit text-blue-600"><Layers size={24} /></div>
+              <div>
+                <h3 className="text-lg font-bold text-stone-900">Daily Flashcards</h3>
+                <p className="text-stone-600">Review the roots you've learned each day using flashcards. Test your memory, flip to see the meaning, and earn XP for remembering correctly.</p>
               </div>
             </div>
             <div className="flex gap-4">

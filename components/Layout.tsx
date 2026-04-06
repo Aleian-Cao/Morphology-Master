@@ -13,6 +13,7 @@ import {
   Network,
   Puzzle,
   User as UserIcon,
+  Layers,
 } from "lucide-react";
 
 interface LayoutProps {
@@ -37,6 +38,7 @@ export const Layout: React.FC<LayoutProps> = ({
   const navItems = [
     { id: AppView.DASHBOARD, label: "Curriculum", icon: Book },
     { id: AppView.GARDEN, label: "Word Garden", icon: Leaf },
+    { id: AppView.FLASHCARDS, label: "Daily Flashcards", icon: Layers },
     { id: AppView.ANALYZER, label: "Analyzer", icon: Search },
     { id: AppView.WORD_TREE, label: "Word Tree", icon: Network },
     { id: AppView.PUZZLES, label: "Logic Puzzles", icon: Puzzle },

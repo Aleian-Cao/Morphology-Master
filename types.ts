@@ -124,7 +124,8 @@ export enum AppView {
   UPGRADE = 'UPGRADE',
   WORD_TREE = 'WORD_TREE',
   PUZZLES = 'PUZZLES',
-  PROFILE = 'PROFILE'
+  PROFILE = 'PROFILE',
+  FLASHCARDS = 'FLASHCARDS'
 }
 
 export interface MorphologyAnalysis {
