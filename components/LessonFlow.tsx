@@ -178,7 +178,7 @@ export const LessonFlow: React.FC<LessonFlowProps> = ({
 
   if (phase === "PREPARING") {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-stone-50">
+      <div className="flex flex-col items-center justify-center min-h-[100dvh] bg-stone-50">
         <Loader2 className="animate-spin text-orange-500 mb-4" size={48} />
         <h2 className="text-xl font-serif font-bold text-stone-700">
           Consulting AI...
@@ -336,7 +336,7 @@ export const LessonFlow: React.FC<LessonFlowProps> = ({
   );
 
   const renderDerivation = () => (
-    <div className="w-full max-w-6xl mx-auto flex flex-col md:flex-row gap-8 items-start h-[calc(100vh-140px)]">
+    <div className="w-full max-w-6xl mx-auto flex flex-col md:flex-row gap-8 items-start h-[calc(100dvh-140px)]">
       {/* LEFT: Tree & Sandbox */}
       <div className="flex-1 w-full flex flex-col h-full">
         <h2 className="text-2xl font-serif font-bold mb-4">
@@ -652,7 +652,7 @@ export const LessonFlow: React.FC<LessonFlowProps> = ({
 
   // Main Layout
   return (
-    <div className="h-full bg-stone-50 flex flex-col">
+    <div className="h-[100dvh] bg-stone-50 flex flex-col">
       {renderHeader()}
       <div className="flex-1 p-6 overflow-y-auto">
         <div className="max-w-3xl mx-auto w-full py-8">

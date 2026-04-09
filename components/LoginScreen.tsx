@@ -20,7 +20,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-stone-100 flex items-center justify-center p-4">
+    <div className="min-h-[100dvh] bg-stone-100 flex items-center justify-center p-4">
       <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full border border-stone-200">
         <div className="flex flex-col items-center mb-8">
             <div className="bg-orange-100 p-4 rounded-full mb-4">

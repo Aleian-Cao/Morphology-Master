@@ -257,7 +257,7 @@ const App: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+      <div className="min-h-[100dvh] bg-stone-50 flex items-center justify-center">
         Loading...
       </div>
     );
@@ -269,7 +269,7 @@ const App: React.FC = () => {
 
   if (view === AppView.UPGRADE && user) {
     return (
-      <div className="h-screen flex flex-col bg-stone-50">
+      <div className="h-[100dvh] flex flex-col bg-stone-50">
         <div className="flex-1 overflow-y-auto">
           <UpgradePage
             user={user}
@@ -285,7 +285,7 @@ const App: React.FC = () => {
 
   if (view === AppView.ASSESSMENT && activeAssessment) {
     return (
-      <div className="h-screen flex flex-col bg-stone-50">
+      <div className="h-[100dvh] flex flex-col bg-stone-50">
         <div className="flex-1 overflow-y-auto">
           <TierAssessment
             tierId={activeAssessment.tierId}

@@ -152,7 +152,7 @@ export const TierAssessment: React.FC<TierAssessmentProps> = ({
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+      <div className="flex flex-col items-center justify-center min-h-[60dvh]">
         <Loader2 className="animate-spin text-orange-500 mb-4" size={48} />
         <h2 className="text-xl font-bold text-stone-700">
           Generating Tier {tierId} Exam...
@@ -166,7 +166,7 @@ export const TierAssessment: React.FC<TierAssessmentProps> = ({
 
   if (error || questions.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8">
+      <div className="flex flex-col items-center justify-center min-h-[60dvh] text-center p-8">
         <AlertCircle size={48} className="text-red-500 mb-4" />
         <h2 className="text-2xl font-bold text-stone-800 mb-2">
           Assessment Generation Failed

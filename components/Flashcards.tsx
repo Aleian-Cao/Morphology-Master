@@ -33,7 +33,7 @@ export const Flashcards: React.FC<FlashcardsProps> = ({ progress, onProgressUpda
 
   if (learnedLessons.length === 0) {
     return (
-      <div className="p-6 md:p-8 max-w-3xl mx-auto text-center mt-20">
+      <div className="p-6 md:p-8 max-w-3xl mx-auto text-center mt-20 min-h-[100dvh]">
         <div className="bg-white p-12 rounded-3xl shadow-sm border border-stone-200">
           <Layers size={64} className="mx-auto text-stone-300 mb-6" />
           <h2 className="text-2xl font-serif font-bold text-stone-900 mb-4">No Flashcards Yet</h2>
@@ -47,7 +47,7 @@ export const Flashcards: React.FC<FlashcardsProps> = ({ progress, onProgressUpda
 
   if (completed) {
     return (
-      <div className="p-6 md:p-8 max-w-3xl mx-auto text-center mt-20">
+      <div className="p-6 md:p-8 max-w-3xl mx-auto text-center mt-20 min-h-[100dvh]">
         <div className="bg-white p-12 rounded-3xl shadow-sm border border-stone-200 animate-in zoom-in-95 duration-500">
           <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
             <Check size={48} />

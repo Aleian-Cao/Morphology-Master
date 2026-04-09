@@ -51,7 +51,7 @@ export const Layout: React.FC<LayoutProps> = ({
   };
 
   return (
-    <div className="flex h-screen bg-stone-50 overflow-hidden font-sans">
+    <div className="flex h-[100dvh] bg-stone-50 overflow-hidden font-sans">
       {/* Sidebar (Desktop) */}
       <aside className="hidden md:flex flex-col w-64 bg-stone-900 text-stone-300 shrink-0 shadow-xl z-20">
         <div className="p-6 flex items-center gap-3 border-b border-stone-800">
@@ -113,7 +113,7 @@ export const Layout: React.FC<LayoutProps> = ({
       </aside>
 
       {/* Main Content Wrapper */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden relative bg-stone-50">
+      <div className="flex-1 flex flex-col h-full overflow-hidden relative bg-stone-50">
         {/* Global Header */}
         <header className="h-16 bg-white border-b border-stone-200 flex items-center justify-between px-4 md:px-8 shrink-0 z-10 shadow-sm">
           <div className="flex items-center gap-4">

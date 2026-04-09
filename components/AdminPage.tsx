@@ -234,7 +234,7 @@ export const AdminPage: React.FC = () => {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-stone-950 flex items-center justify-center p-6">
+      <div className="min-h-[100dvh] bg-stone-950 flex items-center justify-center p-6">
         <div className="bg-stone-900 p-8 rounded-2xl shadow-xl border border-stone-800 w-full max-w-md">
           <div className="flex justify-center mb-6">
             <div className="p-4 bg-stone-800 rounded-full">
@@ -270,7 +270,7 @@ export const AdminPage: React.FC = () => {
   }
 
   return (
-    <div className="p-6 md:p-8 bg-stone-950 text-stone-100 min-h-screen">
+    <div className="p-6 md:p-8 bg-stone-950 text-stone-100 min-h-[100dvh]">
       <div className="max-w-6xl mx-auto space-y-12">
         <div className="flex items-center gap-4 border-b border-stone-800 pb-6">
           <Shield className="text-amber-500" size={40} />
