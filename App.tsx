@@ -400,6 +400,7 @@ const App: React.FC = () => {
         {view === AppView.FLASHCARDS && (
           <Flashcards 
             progress={user.progress}
+            customApiKey={user?.customApiKey}
             onProgressUpdate={(xpGained) => {
               const newProgress = { ...user.progress };
               newProgress.xp += xpGained;

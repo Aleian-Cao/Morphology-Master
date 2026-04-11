@@ -217,7 +217,7 @@ export const MorphologyAnalyzer: React.FC<MorphologyAnalyzerProps> = ({ customAp
           </div>
           <div>
             <h1 className="text-3xl font-serif font-bold text-stone-900">Morphology Analyzer</h1>
-            <p className="text-stone-500">Analyze any English word to understand its roots, prefixes, and suffixes.</p>
+            <p className="text-stone-500">Analyze any English word or translate a Vietnamese word to understand its roots, prefixes, and suffixes.</p>
           </div>
         </div>
 
@@ -231,7 +231,7 @@ export const MorphologyAnalyzer: React.FC<MorphologyAnalyzerProps> = ({ customAp
                 value={word}
                 onChange={(e) => setWord(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAnalyze(word)}
-                placeholder="Enter an English word (e.g., 'unbelievable', 'democracy')"
+                placeholder="Enter an English or Vietnamese word (e.g., 'unbelievable', 'dân chủ')"
                 className="w-full pl-12 pr-4 py-4 rounded-xl border border-stone-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none text-lg shadow-sm transition-all"
               />
             </div>

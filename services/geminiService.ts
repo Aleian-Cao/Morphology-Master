@@ -314,14 +314,18 @@ const generateTierAssessment = async (tierId: number, roots: string[], customKey
 export const analyzeMorphology = async (word: string, customKey?: string): Promise<any> => {
     try {
         const prompt = `
-          Analyze the morphology of the English word "${word}".
+          The user has provided the input: "${word}".
+          If the input is in Vietnamese, first translate it to the most common, single English equivalent word.
+          If the input is in English, use it directly.
+          Then, analyze the morphology of the resulting English word.
           Provide the following details:
-          1. phonetic: The phonetic transcription (IPA).
-          2. meaning_vi: The Vietnamese meaning of the word.
-          3. explanation_vi: A detailed explanation in Vietnamese of how the morphological parts combine to form the word's overall meaning (e.g., 'un-' means not, 'believ' means trust, '-able' means capable of, so it means not capable of being trusted).
-          4. parts: Break down the word into its morphological parts (PREFIX, ROOT, SUFFIX) with their English and Vietnamese meanings.
-          5. synonyms: A list of 3-5 synonyms in English.
-          6. morphologicalRelatives: A list of 3-5 words that share the same root or morphological structure (đồng hình thái học).
+          1. word: The English word being analyzed.
+          2. phonetic: The phonetic transcription (IPA) of the English word.
+          3. meaning_vi: The Vietnamese meaning of the English word.
+          4. explanation_vi: A detailed explanation in Vietnamese of how the morphological parts combine to form the word's overall meaning (e.g., 'un-' means not, 'believ' means trust, '-able' means capable of, so it means not capable of being trusted).
+          5. parts: Break down the English word into its morphological parts (PREFIX, ROOT, SUFFIX) with their English and Vietnamese meanings.
+          6. synonyms: A list of 3-5 synonyms in English.
+          7. morphologicalRelatives: A list of 3-5 words that share the same root or morphological structure (đồng hình thái học).
 
           JSON Schema:
           {
