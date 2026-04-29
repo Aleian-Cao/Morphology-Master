@@ -62,7 +62,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, progress, appConfig,
     return null;
   };
 
+  const getTopWeakness = () => {
+    if (!progress.weaknesses) return null;
+    const items = Object.values(progress.weaknesses);
+    if (items.length === 0) return null;
+    items.sort((a, b) => b.mistakeCount - a.mistakeCount);
+    return items[0].mistakeCount > 1 ? items[0] : null; // recommend if made mistake at least twice
+  };
+
   const recommendedLesson = getRecommendedLesson();
+  const topWeakness = getTopWeakness();
 
   return (
     <div className="p-6 md:p-8">
@@ -75,7 +84,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, progress, appConfig,
         </div>
 
         {/* Adaptive Learning Path Recommendation */}
-        {recommendedLesson && (
+        {topWeakness ? (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-6 mb-12 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className="bg-red-500 text-white p-4 rounded-xl shadow-inner">
+                <Shield size={32} />
+              </div>
+              <div>
+                <p className="text-red-700 font-bold text-sm uppercase tracking-wider mb-1">Học Củng Cố (Remedial Target)</p>
+                <h2 className="text-2xl font-serif font-bold text-stone-900">Morpheme: {topWeakness.morpheme}</h2>
+                <p className="text-stone-600 truncate max-w-sm">Dữ liệu ghi nhận bạn đã nhầm lẫn hình vị này {topWeakness.mistakeCount} lần.</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => onSelectLesson({
+                id: `remedial_${topWeakness.morpheme}`,
+                title: `Khắc phục: ${topWeakness.morpheme}`,
+                root: topWeakness.morpheme,
+                meaning: "Luyện tập bổ sung",
+                category: "Remedial",
+                tier: 0
+              })}
+              className="w-full md:w-auto bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-xl font-bold transition-colors shadow-md"
+            >
+              Ôn tập chuyên sâu
+            </button>
+          </div>
+        ) : recommendedLesson && (
           <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 mb-12 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
             <div className="flex items-center gap-4">
               <div className="bg-blue-500 text-white p-4 rounded-xl shadow-inner">

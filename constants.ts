@@ -215,5 +215,7 @@ export const INITIAL_USER_PROGRESS: UserProgress = {
     level: 1
   },
   assessments: [],
-  achievements: []
+  achievements: [],
+  srs: {},
+  weaknesses: {}
 };

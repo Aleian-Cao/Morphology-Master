@@ -13,12 +13,13 @@ import { ProfilePage } from "./components/ProfilePage";
 import { UpgradePage } from "./components/UpgradePage";
 import { AdminPage } from "./components/AdminPage";
 import { Flashcards } from "./components/Flashcards";
+import { ReviewPage } from "./components/ReviewPage";
 import { Layout } from "./components/Layout";
 import { auth, db } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { INITIAL_USER_PROGRESS } from "./constants";
-import { AppConfig } from "./types";
+import { AppConfig, PartType } from "./types";
 import { Key, X } from "lucide-react";
 
 const App: React.FC = () => {
@@ -192,12 +193,33 @@ const App: React.FC = () => {
 
     const newProgress = { ...user.progress };
 
+    // Register root to SRS if not already present
+    if (!newProgress.srs) newProgress.srs = {};
+    const srsKey = activeLesson.root;
+    if (!newProgress.srs[srsKey]) {
+      newProgress.srs[srsKey] = {
+        morpheme: activeLesson.root,
+        meaning_vi: activeLesson.meaning_vi || activeLesson.meaning || "",
+        type: PartType.ROOT,
+        easinessFactor: 2.5,
+        interval: 1,
+        repetitions: 0,
+        nextReviewDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+      };
+    }
+
     // Logic: Only add XP/Tree if lesson wasn't done before
     if (!newProgress.completedLessons?.includes(activeLesson.id)) {
       newProgress.completedLessons = newProgress.completedLessons || [];
       newProgress.completedLessons.push(activeLesson.id);
       newProgress.xp += 100;
       newProgress.garden.trees += 1;
+
+      // If it's a remedial lesson, clear the weakness
+      if (activeLesson.id.startsWith('remedial_') && newProgress.weaknesses && newProgress.weaknesses[activeLesson.root]) {
+         newProgress.weaknesses[activeLesson.root].mistakeCount = 0;
+         newProgress.xp += 150; // Extra reward for fixing a weakness
+      }
 
       checkAchievements(newProgress);
 
@@ -225,6 +247,31 @@ const App: React.FC = () => {
     // Add result history
     newProgress.assessments = newProgress.assessments || [];
     newProgress.assessments.push(result);
+
+    if (result.missedMorphemes && result.missedMorphemes.length > 0) {
+      if (!newProgress.weaknesses) newProgress.weaknesses = {};
+      result.missedMorphemes.forEach(m => {
+        if (!newProgress.weaknesses![m]) {
+          newProgress.weaknesses![m] = {
+            morpheme: m,
+            type: PartType.ROOT, // defaults to root for now
+            mistakeCount: 1,
+            lastMistakeDate: new Date().toISOString()
+          };
+        } else {
+          newProgress.weaknesses![m].mistakeCount++;
+          newProgress.weaknesses![m].lastMistakeDate = new Date().toISOString();
+        }
+        
+        // Also update SRS if it exists: lower the interval to enforce review soon
+        if (newProgress.srs && newProgress.srs[m]) {
+           newProgress.srs[m].interval = 1;
+           newProgress.srs[m].repetitions = 0;
+           newProgress.srs[m].easinessFactor = Math.max(1.3, newProgress.srs[m].easinessFactor - 0.2);
+           newProgress.srs[m].nextReviewDate = new Date().toISOString(); // Due immediately
+        }
+      });
+    }
 
     if (result.passed) {
       // Unlock next tier if not already unlocked
@@ -408,6 +455,14 @@ const App: React.FC = () => {
               saveUserProgress(user.uid!, newProgress);
               setUser({ ...user, progress: newProgress });
             }}
+          />
+        )}
+
+        {view === AppView.REVIEW && (
+          <ReviewPage
+            user={user}
+            onBack={() => setView(AppView.DASHBOARD)}
+            onUpdateProgress={(p) => setUser({ ...user, progress: p })}
           />
         )}
 

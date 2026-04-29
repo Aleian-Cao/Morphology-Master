@@ -134,7 +134,8 @@ export const generateDrillQuestions = async (root: string, meaning: string, cust
             options: string[],
             correctAnswer: string,
             explanation: string,
-            explanation_vi: string
+            explanation_vi: string,
+            morphemeTracked: string // always "${root}"
           }
         ]
       }
@@ -269,7 +270,8 @@ const generateTierAssessment = async (tierId: number, roots: string[], customKey
             question: string,
             options: string[], // 4 options
             correctAnswer: string,
-            explanation: string
+            explanation: string,
+            morphemeTracked: string // The exact root or affix this question is primarily testing
           }
         ]
       }

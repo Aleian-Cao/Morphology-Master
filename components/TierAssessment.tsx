@@ -115,12 +115,16 @@ export const TierAssessment: React.FC<TierAssessmentProps> = ({
 
     let score = 0;
     const missedConcepts: string[] = [];
+    const missedMorphemes: string[] = [];
 
     questions.forEach((q, idx) => {
       if (answers[idx] === q.correctAnswer) {
         score++;
       } else {
         missedConcepts.push(q.question); // Send full question for better context
+        if (q.morphemeTracked) {
+           missedMorphemes.push(q.morphemeTracked);
+        }
       }
     });
 
@@ -146,6 +150,7 @@ export const TierAssessment: React.FC<TierAssessmentProps> = ({
         passed,
         feedback,
         date: new Date().toISOString(),
+        missedMorphemes
       });
     }, 6000); // Increased delay so user can read feedback
   };

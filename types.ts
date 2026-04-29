@@ -69,6 +69,7 @@ export interface TierAssessmentResult {
   passed: boolean;
   feedback: string;
   date: string;
+  missedMorphemes?: string[];
 }
 
 export interface Achievement {
@@ -77,6 +78,23 @@ export interface Achievement {
   description: string;
   icon: string;
   unlockedAt: string;
+}
+
+export interface SRSRecord {
+  morpheme: string;
+  meaning_vi: string;
+  type: PartType;
+  easinessFactor: number;
+  interval: number;
+  repetitions: number;
+  nextReviewDate: string;
+}
+
+export interface WeaknessRecord {
+  morpheme: string;
+  type: PartType;
+  mistakeCount: number;
+  lastMistakeDate: string;
 }
 
 export interface UserProgress {
@@ -89,6 +107,8 @@ export interface UserProgress {
   };
   assessments: TierAssessmentResult[];
   achievements?: Achievement[];
+  srs?: Record<string, SRSRecord>;
+  weaknesses?: Record<string, WeaknessRecord>;
 }
 
 export interface User {
@@ -107,6 +127,7 @@ export interface DrillQuestion {
   correctAnswer: string;
   explanation: string;
   explanation_vi?: string;
+  morphemeTracked?: string;
 }
 
 export interface RemediationPlan {
@@ -125,7 +146,8 @@ export enum AppView {
   WORD_TREE = 'WORD_TREE',
   PUZZLES = 'PUZZLES',
   PROFILE = 'PROFILE',
-  FLASHCARDS = 'FLASHCARDS'
+  FLASHCARDS = 'FLASHCARDS',
+  REVIEW = 'REVIEW'
 }
 
 export interface MorphologyAnalysis {
