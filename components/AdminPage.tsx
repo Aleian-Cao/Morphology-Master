@@ -34,6 +34,7 @@ export const AdminPage: React.FC = () => {
   const [error, setError] = useState("");
 
   const [adminKeys, setAdminKeys] = useState<any[]>([]);
+  const [upgradeRequests, setUpgradeRequests] = useState<any[]>([]);
   const [adminLoading, setAdminLoading] = useState(false);
 
   const [config, setConfig] = useState<AppConfig>({
@@ -57,9 +58,20 @@ export const AdminPage: React.FC = () => {
       loadConfig();
       if (firebaseUser?.email === adminEmail) {
         loadAdminKeys();
+        loadUpgradeRequests();
       }
     }
   }, [isAuthenticated, firebaseUser]);
+
+  const loadUpgradeRequests = async () => {
+    try {
+      const q = query(collection(db, "upgrade_requests"), orderBy("createdAt", "desc"));
+      const snapshot = await getDocs(q);
+      setUpgradeRequests(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch(e) {
+      console.error(e);
+    }
+  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,6 +171,53 @@ export const AdminPage: React.FC = () => {
     } catch (e) {
       console.error("Failed to renew key", e);
       setError("Failed to renew key. Check permissions.");
+    }
+    setAdminLoading(false);
+  };
+
+  const handleApproveRequest = async (request: any) => {
+    if (firebaseUser?.email !== adminEmail) return;
+    try {
+      setAdminLoading(true);
+      
+      const userRef = doc(db, "users", request.userId);
+      const userSnap = await getDoc(userRef);
+      let newExpiresAt = new Date();
+      if (userSnap.exists()) {
+         const userData = userSnap.data();
+         if (userData.proExpiresAt) {
+            const currentExpiresAt = new Date(userData.proExpiresAt);
+            if (currentExpiresAt > new Date()) {
+               newExpiresAt = currentExpiresAt;
+            }
+         }
+      }
+      newExpiresAt.setMonth(newExpiresAt.getMonth() + 1);
+      
+      await setDoc(userRef, {
+        isPro: true,
+        proExpiresAt: newExpiresAt.toISOString()
+      }, { merge: true });
+
+      await setDoc(doc(db, "upgrade_requests", request.id), { status: "approved" }, { merge: true });
+      await loadUpgradeRequests();
+      alert("Request approved! The user now has PRO access.");
+    } catch(e) {
+      console.error(e);
+      alert("Failed to approve request.");
+    }
+    setAdminLoading(false);
+  };
+
+  const handleRejectRequest = async (requestId: string) => {
+    if (firebaseUser?.email !== adminEmail) return;
+    try {
+      setAdminLoading(true);
+      await setDoc(doc(db, "upgrade_requests", requestId), { status: "rejected" }, { merge: true });
+      await loadUpgradeRequests();
+    } catch(e) {
+      console.error(e);
+      alert("Failed to reject request.");
     }
     setAdminLoading(false);
   };
@@ -456,6 +515,67 @@ export const AdminPage: React.FC = () => {
                   <tr>
                     <td colSpan={4} className="p-8 text-center text-stone-500">
                       No keys generated yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {/* Upgrade Requests Management */}
+        <div className="bg-stone-900 p-8 rounded-2xl border border-stone-800">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              <Key className="text-amber-500" />
+              Upgrade Requests
+            </h2>
+            <button
+              onClick={loadUpgradeRequests}
+              className="bg-stone-800 hover:bg-stone-700 text-stone-200 font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors border border-stone-700"
+            >
+              Refresh
+            </button>
+          </div>
+
+          <div className="bg-stone-950 rounded-xl overflow-hidden border border-stone-800">
+            <table className="w-full text-left">
+              <thead className="bg-stone-900 text-stone-400 text-sm uppercase tracking-wider">
+                <tr>
+                  <th className="p-4">User</th>
+                  <th className="p-4">Transfer Code</th>
+                  <th className="p-4">Status</th>
+                  <th className="p-4">Date</th>
+                  <th className="p-4">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-800">
+                {upgradeRequests.map((r) => (
+                  <tr key={r.id} className="hover:bg-stone-900 transition-colors">
+                    <td className="p-4 text-stone-300">
+                      <div>{r.userEmail}</div>
+                      <div className="text-xs text-stone-500 font-mono">{r.userId}</div>
+                    </td>
+                    <td className="p-4 font-mono text-amber-400">{r.transferCode}</td>
+                    <td className="p-4">
+                      {r.status === "pending" && <span className="px-2 py-1 bg-amber-900/30 text-amber-400 rounded text-xs font-bold border border-amber-900/50">PENDING</span>}
+                      {r.status === "approved" && <span className="px-2 py-1 bg-green-900/30 text-green-400 rounded text-xs font-bold border border-green-900/50">APPROVED</span>}
+                      {r.status === "rejected" && <span className="px-2 py-1 bg-red-900/30 text-red-400 rounded text-xs font-bold border border-red-900/50">REJECTED</span>}
+                    </td>
+                    <td className="p-4 text-stone-400 text-sm">{new Date(r.createdAt).toLocaleString()}</td>
+                    <td className="p-4">
+                      {r.status === "pending" && (
+                        <div className="flex gap-2">
+                           <button onClick={() => handleApproveRequest(r)} className="px-3 py-1 bg-green-900/50 hover:bg-green-800 text-green-300 rounded font-bold text-xs transition-colors">Approve</button>
+                           <button onClick={() => handleRejectRequest(r.id)} className="px-3 py-1 bg-red-900/50 hover:bg-red-800 text-red-300 rounded font-bold text-xs transition-colors">Reject</button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {upgradeRequests.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="p-8 text-center text-stone-500">
+                      No upgrade requests found.
                     </td>
                   </tr>
                 )}

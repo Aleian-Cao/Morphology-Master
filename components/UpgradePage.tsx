@@ -9,10 +9,13 @@ import {
   Copy,
   Check,
   X,
+  MessageCircle,
+  Send,
+  Loader2,
 } from "lucide-react";
 import { User } from "../types";
 import { db } from "../firebase";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, setDoc, query, collection, getDocs, where } from "firebase/firestore";
 
 interface UpgradePageProps {
   user: User;
@@ -28,12 +31,70 @@ export const UpgradePage: React.FC<UpgradePageProps> = ({
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [transferCode, setTransferCode] = useState("");
+  
+  const [requestSending, setRequestSending] = useState(false);
+  const [requestSuccess, setRequestSuccess] = useState("");
 
   useEffect(() => {
     // Generate a unique transfer code for this user session
     const code = `PAY-${user.uid?.substring(0, 6).toUpperCase() || Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     setTransferCode(code);
+    
+    // Check if user already requested
+    const checkExistingRequest = async () => {
+      if (!user.uid) return;
+      try {
+        const q = query(collection(db, "upgrade_requests"), where("userId", "==", user.uid), where("status", "==", "pending"));
+        const snapshot = await getDocs(q);
+        if (!snapshot.empty) {
+          setRequestSuccess("Your upgrade request is currently pending. Please wait for the admin to approve it.");
+        }
+      } catch(e) {
+        console.error(e);
+      }
+    };
+    checkExistingRequest();
   }, [user.uid]);
+
+  const handleSendDirectRequest = async () => {
+    if (!user.uid) return;
+    setRequestSending(true);
+    try {
+      await setDoc(doc(db, "upgrade_requests", user.uid), {
+         userId: user.uid,
+         userEmail: user.email || "Unknown",
+         transferCode,
+         status: "pending",
+         createdAt: new Date().toISOString()
+      });
+
+      // Send email notification to admin automatically via FormSubmit
+      try {
+        await fetch(`https://formsubmit.co/ajax/10a10caonguyenthanhan@gmail.com`, {
+          method: "POST",
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            _subject: `[Morphology Master] New Upgrade Request: ${transferCode}`,
+            message: `User ${user.email || "Unknown"} has requested an upgrade.\n\nTransfer Code: ${transferCode}\nUser ID: ${user.uid}\n\nPlease check your bank account and go to the Admin Page to approve their request.`,
+            UserEmail: user.email,
+            TransferCode: transferCode,
+            _template: "table"
+          })
+        });
+      } catch (emailError) {
+         console.error("Failed to send email notification to admin", emailError);
+      }
+
+      setRequestSuccess("Upgrade request sent successfully! We will grant your access soon after verifying the payment.");
+    } catch (e) {
+      console.error(e);
+      alert("Failed to send request. Please use Email or Zalo instead.");
+    }
+    setRequestSending(false);
+  };
 
   const handleClaimKey = async () => {
     if (!keyInput.trim()) {
@@ -222,19 +283,70 @@ export const UpgradePage: React.FC<UpgradePageProps> = ({
 
             <h2 className="text-2xl font-bold text-stone-800 mb-6 flex items-center gap-2">
               <Mail className="text-stone-400" />
-              2. Send Confirmation
+              2. Notify Payment & Receive Activation
             </h2>
             <p className="text-stone-600 mb-6">
-              After transferring, click the button below to send an email with
-              your transfer code. We will reply with your Pro Key.
+              To speed up the activation, please send your transfer code or submit an automatic request.
             </p>
-            <a
-              href={`mailto:10a10caonguyenthanhan@gmail.com?subject=Upgrade Pro - ${transferCode}&body=Hello,%0D%0A%0D%0AI have transferred the payment. My transfer code is ${transferCode}.%0D%0A%0D%0AMy account email is: ${user.email || ""}%0D%0A%0D%0APlease send me my Pro Key.%0D%0A%0D%0AThank you!`}
-              className="w-full bg-stone-900 hover:bg-stone-800 text-white font-bold py-4 px-6 rounded-xl transition-colors flex items-center justify-center gap-2"
-            >
-              <Mail size={20} />
-              Send Email Confirmation
-            </a>
+            
+            <div className="space-y-4">
+              {/* Option A: Direct Request */}
+              <div className="border border-stone-200 rounded-xl p-5 bg-white">
+                <h3 className="font-bold text-stone-800 mb-2 flex items-center gap-2">
+                   <CheckCircle className="text-green-500" size={18}/>
+                   Option A: Request Auto-Activation
+                </h3>
+                <p className="text-sm text-stone-500 mb-4">
+                  Click the button below to submit your payment details directly. Our system will grant you access as soon as the bank verifies the transaction.
+                </p>
+                {requestSuccess ? (
+                  <div className="bg-green-50 text-green-700 p-3 rounded-lg text-sm font-medium border border-green-200">
+                    {requestSuccess}
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleSendDirectRequest}
+                    disabled={requestSending}
+                    className="w-full sm:w-auto bg-stone-900 hover:bg-stone-800 text-white font-bold py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:bg-stone-300"
+                  >
+                    {requestSending ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
+                    Submit Payment Request
+                  </button>
+                )}
+              </div>
+
+              {/* Option B: Direct Messaging */}
+              <div className="border border-stone-200 rounded-xl p-5 bg-white">
+                <h3 className="font-bold text-stone-800 mb-2 flex items-center gap-2">
+                   <MessageCircle className="text-blue-500" size={18}/>
+                   Option B: Contact via Zalo or Email
+                </h3>
+                 <p className="text-sm text-stone-500 mb-4">
+                  Prefer direct contact? Send a message with your transfer code: <span className="font-mono font-bold text-stone-700">{transferCode}</span>
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <a
+                    href="https://zalo.me/YOUR_ZALO_PHONE_NUMBER"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 border border-blue-200"
+                  >
+                    Send Zalo Message
+                  </a>
+                  <a
+                    href={`mailto:10a10caonguyenthanhan@gmail.com?subject=Upgrade Pro - ${transferCode}&body=Hello,%0D%0A%0D%0AI have transferred the payment. My transfer code is ${transferCode}.%0D%0A%0D%0AMy account email is: ${user.email || ""}%0D%0A%0D%0APlease verify and activate my Pro account.%0D%0A%0D%0AThank you!`}
+                    target="_top"
+                    className="flex-1 bg-stone-50 hover:bg-stone-100 text-stone-700 font-bold py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 border border-stone-200"
+                  >
+                    <Mail size={18} />
+                    Send Email
+                  </a>
+                </div>
+              </div>
+            </div>
+            <p className="text-stone-400 text-xs mt-6 text-center italic">
+              * Note: For automated setups, please ensure the transfer message exactly matches your code.
+            </p>
           </div>
 
           {/* Key Redemption */}
