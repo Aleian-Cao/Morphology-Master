@@ -19,7 +19,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read, write: if isOwner(userId) || (isAuthenticated() && request.auth.token.email == "10a10caonguyenthanhan@gmail.com");
     }
 
     match /analyses/{analysisId} {
