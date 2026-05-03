@@ -42,6 +42,7 @@ export const Layout: React.FC<LayoutProps> = ({
     { id: AppView.FLASHCARDS, label: "Daily Flashcards", icon: Layers },
     { id: AppView.REVIEW, label: "Ôn Tập (SRS)", icon: BrainCircuit },
     { id: AppView.ANALYZER, label: "Analyzer", icon: Search },
+    { id: AppView.TUTOR, label: "AI Tutor V2", icon: UserIcon },
     { id: AppView.WORD_TREE, label: "Word Tree", icon: Network },
     { id: AppView.PUZZLES, label: "Logic Puzzles", icon: Puzzle },
     { id: AppView.PROFILE, label: "Account & Guide", icon: UserIcon },

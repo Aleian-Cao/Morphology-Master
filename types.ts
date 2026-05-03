@@ -105,6 +105,7 @@ export interface UserProgress {
     trees: number;
     level: number;
   };
+  jobDescription?: string;
   assessments: TierAssessmentResult[];
   achievements?: Achievement[];
   srs?: Record<string, SRSRecord>;
@@ -147,7 +148,8 @@ export enum AppView {
   PUZZLES = 'PUZZLES',
   PROFILE = 'PROFILE',
   FLASHCARDS = 'FLASHCARDS',
-  REVIEW = 'REVIEW'
+  REVIEW = 'REVIEW',
+  TUTOR = 'TUTOR'
 }
 
 export interface MorphologyAnalysis {

@@ -14,6 +14,7 @@ import { UpgradePage } from "./components/UpgradePage";
 import { AdminPage } from "./components/AdminPage";
 import { Flashcards } from "./components/Flashcards";
 import { ReviewPage } from "./components/ReviewPage";
+import { ProfessionalTutor } from "./components/ProfessionalTutor";
 import { Layout } from "./components/Layout";
 import { auth, db } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -463,6 +464,13 @@ const App: React.FC = () => {
             user={user}
             onBack={() => setView(AppView.DASHBOARD)}
             onUpdateProgress={(p) => setUser({ ...user, progress: p })}
+          />
+        )}
+
+        {view === AppView.TUTOR && (
+          <ProfessionalTutor
+            user={user}
+            onBack={() => setView(AppView.DASHBOARD)}
           />
         )}
 
