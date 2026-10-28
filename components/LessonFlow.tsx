@@ -15,6 +15,7 @@ import {
 } from "../services/geminiService";
 import { DissectionLab } from "./DissectionLab";
 import { WordTree } from "./WordTree";
+import { soundFX } from "../utils/soundEffects";
 import {
   BrainCircuit,
   Construction,
@@ -476,6 +477,7 @@ export const LessonFlow: React.FC<LessonFlowProps> = ({
     setSelectedOption(option);
     setShowAnswer(true);
     if (option === drillQuestions[currentQuestionIndex].correctAnswer) {
+      soundFX.playCorrect();
       setScore((s) => s + 10); // Visual Score
     } else {
       // Track missed concepts
@@ -502,6 +504,7 @@ export const LessonFlow: React.FC<LessonFlowProps> = ({
     const finalScore = (correctCount / 10) * 100;
 
     if (correctCount >= 7) {
+      soundFX.playLessonComplete();
       onComplete();
     } else {
       startRemediation();

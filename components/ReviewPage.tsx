@@ -3,6 +3,7 @@ import { User, UserProgress, SRSRecord, PartType } from '../types';
 import { db } from '../firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { ArrowLeft, Check, X, BrainCircuit, RefreshCw, Send, Loader2 } from 'lucide-react';
+import { soundFX } from '../utils/soundEffects';
 
 interface ReviewPageProps {
   user: User;
@@ -35,6 +36,7 @@ export const ReviewPage: React.FC<ReviewPageProps> = ({ user, onBack, onUpdatePr
     let repetitions = currentItem.repetitions ?? 0;
 
     if (quality >= 3) {
+      soundFX.playXpGain();
       if (repetitions === 0) {
         interval = 1;
       } else if (repetitions === 1) {
@@ -78,6 +80,10 @@ export const ReviewPage: React.FC<ReviewPageProps> = ({ user, onBack, onUpdatePr
       }
     } catch (e) {
       console.error("Failed to save SRS progress", e);
+    }
+
+    if (currentIndex >= dueItems.length - 1) {
+      soundFX.playLessonComplete();
     }
 
     setShowAnswer(false);
@@ -174,7 +180,10 @@ export const ReviewPage: React.FC<ReviewPageProps> = ({ user, onBack, onUpdatePr
 
           {!showAnswer ? (
             <button 
-              onClick={() => setShowAnswer(true)}
+              onClick={() => {
+                soundFX.playCardFlip();
+                setShowAnswer(true);
+              }}
               className="w-full bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold py-4 rounded-xl border border-stone-300 transition-colors flex items-center justify-center gap-2"
             >
               <RefreshCw size={20} />

@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
 import { CURRICULUM } from '../constants';
-import { Lesson, UserProgress, AppConfig, User } from '../types';
-import { Lock, Unlock, Star, Leaf, ChevronDown, ChevronUp, Book, LogOut, GraduationCap, CheckCircle, Search, Shield, Key, X } from 'lucide-react';
+import { AppView, Lesson, UserProgress, AppConfig, User } from '../types';
+import { Lock, Unlock, Star, Leaf, ChevronDown, ChevronUp, Book, LogOut, GraduationCap, CheckCircle, Search, Shield, Key, X, Volume2, Sparkles, ArrowRight } from 'lucide-react';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { ProgressChart } from './ProgressChart';
+import { LessonsRechartsChart } from './LessonsRechartsChart';
+import { DailyStreakWidget } from './DailyStreakWidget';
+import { DailyGoalWidget } from './DailyGoalWidget';
 
 interface DashboardProps {
   user: User;
@@ -12,10 +16,12 @@ interface DashboardProps {
   onSelectLesson: (lesson: Lesson) => void;
   onTakeAssessment: (tierId: number, roots: string[]) => void;
   onUpdateUser: (updates: Partial<User>) => void;
+  onNavigateView?: (view: AppView) => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ user, progress, appConfig, onSelectLesson, onTakeAssessment, onUpdateUser }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ user, progress, appConfig, onSelectLesson, onTakeAssessment, onUpdateUser, onNavigateView }) => {
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
+  const [chartEngine, setChartEngine] = useState<'recharts' | 'd3'>('recharts');
 
   const toggleModule = (moduleId: string) => {
     setExpandedModules(prev => ({
@@ -78,10 +84,52 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, progress, appConfig,
       <div className="max-w-5xl mx-auto">
         
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <h1 className="text-3xl font-serif font-bold text-stone-900 mb-2">Welcome back, {user.username}!</h1>
           <p className="text-stone-500 text-lg">Ready to continue your morphological journey?</p>
         </div>
+
+        {/* Daily Learning Goal Tracker */}
+        <DailyGoalWidget
+          progress={progress}
+          onUpdateProgress={(updated) => onUpdateUser({ progress: updated })}
+          onStartLesson={recommendedLesson ? () => onSelectLesson(recommendedLesson) : undefined}
+          className="mb-6"
+        />
+
+        {/* Daily Streak Counter & Flame Indicator */}
+        <DailyStreakWidget
+          progress={progress}
+          onStartLesson={recommendedLesson ? () => onSelectLesson(recommendedLesson) : undefined}
+          className="mb-8"
+        />
+
+        {/* Phonics & Syllable Lab Highlight Banner */}
+        {onNavigateView && (
+          <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 rounded-2xl p-6 mb-8 text-white shadow-lg flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-white/20 backdrop-blur-md rounded-2xl shadow-inner shrink-0">
+                <Volume2 size={32} className="text-amber-100" />
+              </div>
+              <div>
+                <div className="inline-flex items-center gap-1.5 bg-black/20 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider text-amber-200 mb-1">
+                  <Sparkles size={12} /> Chuyên đề trực quan
+                </div>
+                <h2 className="text-xl md:text-2xl font-serif font-bold">Cách Đọc Chữ Cái, Bảng IPA & Phonics</h2>
+                <p className="text-amber-100 text-xs md:text-sm mt-1 max-w-xl">
+                  Đọc chuẩn 26 chữ cái với ví dụ minh họa sinh động, tra cứu trọn bộ 44 âm IPA quốc tế & mổ xẻ âm tiết tiếng Anh.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => onNavigateView(AppView.PHONICS)}
+              className="w-full md:w-auto bg-white hover:bg-amber-50 text-stone-900 px-6 py-3 rounded-xl font-bold transition-all shadow-md flex items-center justify-center gap-2 shrink-0 group text-sm"
+            >
+              <span>Khám Phá Ngay</span>
+              <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+            </button>
+          </div>
+        )}
 
         {/* Adaptive Learning Path Recommendation */}
         {topWeakness ? (
@@ -130,6 +178,46 @@ export const Dashboard: React.FC<DashboardProps> = ({ user, progress, appConfig,
             </button>
           </div>
         )}
+
+        {/* Learning Progress Visual Motivation (Recharts Line Chart / D3) */}
+        <div className="mb-12 space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-xs font-bold text-stone-400 uppercase tracking-wider">
+              Theo dõi nhịp độ & động lực học:
+            </span>
+            <div className="bg-stone-100 p-1 rounded-xl flex items-center text-xs font-bold border border-stone-200">
+              <button
+                onClick={() => setChartEngine('recharts')}
+                className={`px-3 py-1.5 rounded-lg transition-all ${
+                  chartEngine === 'recharts'
+                    ? 'bg-white text-stone-900 shadow-xs'
+                    : 'text-stone-500 hover:text-stone-900'
+                }`}
+              >
+                📈 Recharts (Bài học 30 ngày)
+              </button>
+              <button
+                onClick={() => setChartEngine('d3')}
+                className={`px-3 py-1.5 rounded-lg transition-all ${
+                  chartEngine === 'd3'
+                    ? 'bg-white text-stone-900 shadow-xs'
+                    : 'text-stone-500 hover:text-stone-900'
+                }`}
+              >
+                📊 D3.js (Chi tiết XP)
+              </button>
+            </div>
+          </div>
+
+          {chartEngine === 'recharts' ? (
+            <LessonsRechartsChart
+              progress={progress}
+              onStartLesson={recommendedLesson ? () => onSelectLesson(recommendedLesson) : undefined}
+            />
+          ) : (
+            <ProgressChart progress={progress} />
+          )}
+        </div>
 
         {/* Curriculum List */}
         <div className="space-y-16">

@@ -1,13 +1,23 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, memoryLocalCache } from 'firebase/firestore';
 import firebaseConfig from './firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 
-// Initialize with persistent cache instead of deprecated enableIndexedDbPersistence
+let cacheConfig;
+try {
+  cacheConfig = persistentLocalCache({ tabManager: persistentMultipleTabManager() });
+} catch (e) {
+  console.warn("IndexedDB persistent cache unavailable, using memory cache:", e);
+  cacheConfig = memoryLocalCache();
+}
+
+// Initialize with long-polling transport enabled to prevent 10s WebChannel timeout behind Cloud Run proxies & browser iframes
 export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+  localCache: cacheConfig,
+  experimentalForceLongPolling: true,
+  ignoreUndefinedProperties: true,
 }, firebaseConfig.firestoreDatabaseId);
 
 export const auth = getAuth(app);

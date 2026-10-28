@@ -1,8 +1,10 @@
 import { StateGraph, END, Annotation } from "@langchain/langgraph";
+import { MemorySaver } from "@langchain/langgraph-checkpoint";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { PromptTemplate } from "@langchain/core/prompts";
 import { StringOutputParser } from "@langchain/core/output_parsers";
 import yaml from 'js-yaml';
+import promptsYaml from '../public/prompts.yaml?raw';
 
 // Define State
 export const TutorStateAnnotation = Annotation.Root({
@@ -20,12 +22,11 @@ let config: any = null;
 const loadConfig = async () => {
     if (config) return config;
     try {
-        const res = await fetch('/prompts.yaml');
-        const text = await res.text();
-        config = yaml.load(text);
+        config = yaml.load(promptsYaml);
+        console.log("Loaded config:", config);
         return config;
     } catch (e) {
-        console.error("Failed to load prompts config", e);
+        console.error("Failed to parse prompts config", e);
         return null;
     }
 }
@@ -48,13 +49,13 @@ export const getTutorPipeline = async (customApiKey?: string) => {
     if (!apiKey) throw new Error("API Key is required");
 
     const llmFast = new ChatGoogleGenerativeAI({
-        modelName: "gemini-3-flash-preview",
+        model: "gemini-3-flash-preview",
         temperature: 0,
         apiKey: apiKey
     });
 
     const llmReasoning = new ChatGoogleGenerativeAI({
-        modelName: "gemini-3-flash-preview", // Flash handles these prompts efficiently, can use Pro if needed
+        model: "gemini-3-flash-preview", // Flash handles these prompts efficiently, can use Pro if needed
         temperature: 0.2,
         apiKey: apiKey
     });
@@ -93,13 +94,27 @@ export const getTutorPipeline = async (customApiKey?: string) => {
         return { intent: validIntents.includes(intent) ? intent : "translation" };
     };
 
-    const generationNode = async (state: TutorState): Promise<Partial<TutorState>> => {
+        const generationNode = async (state: TutorState): Promise<Partial<TutorState>> => {
         if (!state.is_safe) {
-            return { final_output: "Request blocked due to security policies (Prompt injection detected by Guardrail)." };
+            return { final_output: JSON.stringify([{word: "Lỗi bảo mật", translation: "Request blocked due to security policies."}]) };
         }
 
         const intent = state.intent;
-        const promptTemplateStr = cnf.tutor_prompts[intent] || cnf.tutor_prompts["translation"];
+        const promptTemplateStr = `
+Based on the following request: "{user_input}" (Job description: {job_description}),
+generate a list of useful vocabulary words, phrases, or key concepts.
+
+You MUST return the output EXACTLY as a valid JSON array of objects. 
+Each object must have exactly two string properties: "word" and "translation" (in Vietnamese).
+Do NOT include any markdown formatting, backticks, or other text outside the JSON array.
+If the user asks to rewrite or translate something, extract the key vocabulary from it.
+
+Example output:
+[
+  {{"word": "revenue", "translation": "doanh thu"}},
+  {{"word": "profit margin", "translation": "biên lợi nhuận"}}
+]
+`;
         
         const prompt = PromptTemplate.fromTemplate(promptTemplateStr);
         const chain = prompt.pipe(llmReasoning).pipe(new StringOutputParser());
@@ -126,5 +141,6 @@ export const getTutorPipeline = async (customApiKey?: string) => {
         .addEdge("intent_routing_node", "generation_node")
         .addEdge("generation_node", END);
 
-    return workflow.compile();
+    const checkpointer = new MemorySaver();
+    return workflow.compile({ checkpointer });
 };

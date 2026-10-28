@@ -15,17 +15,72 @@ import { AdminPage } from "./components/AdminPage";
 import { Flashcards } from "./components/Flashcards";
 import { ReviewPage } from "./components/ReviewPage";
 import { ProfessionalTutor } from "./components/ProfessionalTutor";
+import { PhonicsLab } from "./components/PhonicsLab";
 import { Layout } from "./components/Layout";
 import { auth, db } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { INITIAL_USER_PROGRESS } from "./constants";
 import { AppConfig, PartType } from "./types";
+import { recordWeeklyActivity } from "./components/ProgressChart";
+import { recordStreakActivity } from "./utils/streak";
+import { recordDailyGoalProgress } from "./utils/dailyGoal";
+import { soundFX } from "./utils/soundEffects";
 import { Key, X } from "lucide-react";
+
+export const getInitialViewFromUrl = (): AppView | null => {
+  if (typeof window === "undefined") return null;
+  const path = window.location.pathname.replace(/^\/+/, "").toLowerCase();
+  const searchParam = new URLSearchParams(window.location.search).get("view")?.toLowerCase();
+  const target = searchParam || path;
+
+  switch (target) {
+    case "phonics":
+      return AppView.PHONICS;
+    case "analyzer":
+      return AppView.ANALYZER;
+    case "flashcards":
+      return AppView.FLASHCARDS;
+    case "word-tree":
+    case "word_tree":
+      return AppView.WORD_TREE;
+    case "garden":
+      return AppView.GARDEN;
+    case "puzzles":
+      return AppView.PUZZLES;
+    case "tutor":
+      return AppView.TUTOR;
+    case "review":
+      return AppView.REVIEW;
+    case "upgrade":
+      return AppView.UPGRADE;
+    case "profile":
+      return AppView.PROFILE;
+    case "curriculum":
+    case "dashboard":
+      return AppView.DASHBOARD;
+    default:
+      return null;
+  }
+};
+
+const viewPathMap: Partial<Record<AppView, string>> = {
+  [AppView.DASHBOARD]: "/",
+  [AppView.PHONICS]: "/phonics",
+  [AppView.ANALYZER]: "/analyzer",
+  [AppView.FLASHCARDS]: "/flashcards",
+  [AppView.WORD_TREE]: "/word-tree",
+  [AppView.GARDEN]: "/garden",
+  [AppView.PUZZLES]: "/puzzles",
+  [AppView.TUTOR]: "/tutor",
+  [AppView.REVIEW]: "/review",
+  [AppView.UPGRADE]: "/upgrade",
+  [AppView.PROFILE]: "/profile",
+};
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [view, setView] = useState<AppView>(AppView.LOGIN);
+  const [view, setView] = useState<AppView>(getInitialViewFromUrl() || AppView.LOGIN);
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
   const [activeAssessment, setActiveAssessment] = useState<{
     tierId: number;
@@ -47,18 +102,20 @@ const App: React.FC = () => {
     const fetchConfig = async () => {
       try {
         const docRef = doc(db, "config", "features");
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
+        // Race with 3.5s timeout to prevent blocking on network latency
+        const docSnap = await Promise.race([
+          getDoc(docRef),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3500))
+        ]);
+        if (docSnap && docSnap.exists()) {
           const data = docSnap.data() as AppConfig;
           setAppConfig({
             baseFeatures: data.baseFeatures || [],
             proFeatures: data.proFeatures || [],
           });
-        } else {
-          await setDoc(docRef, appConfig);
         }
       } catch (e) {
-        console.error("Failed to load config", e);
+        console.warn("Using default app features config due to offline/timeout:", e);
       }
     };
     fetchConfig();
@@ -67,62 +124,116 @@ const App: React.FC = () => {
   // Check for existing session
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        const userDocRef = doc(db, "users", firebaseUser.uid);
-        const userDoc = await getDoc(userDocRef);
-        let progress = { ...INITIAL_USER_PROGRESS };
-        let isPro = false;
-        let proExpiresAt: string | undefined;
-        let customApiKey: string | undefined;
+      try {
+        if (firebaseUser) {
+          let progress = { ...INITIAL_USER_PROGRESS };
+          let isPro = false;
+          let proExpiresAt: string | undefined;
+          let customApiKey: string | undefined;
 
-        if (userDoc.exists()) {
-          const data = userDoc.data();
-          progress = { ...INITIAL_USER_PROGRESS, ...data.progress };
-          isPro = data.isPro || false;
-          proExpiresAt = data.proExpiresAt;
-          customApiKey = data.customApiKey;
+          try {
+            const userDocRef = doc(db, "users", firebaseUser.uid);
+            // Quick 3.5s timeout race so user never hangs on loading screen
+            const userDoc = await Promise.race([
+              getDoc(userDocRef),
+              new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3500))
+            ]);
 
-          if (isPro && proExpiresAt) {
-            if (new Date(proExpiresAt) < new Date()) {
-              isPro = false;
-              await setDoc(userDocRef, { isPro: false }, { merge: true });
+            if (userDoc && userDoc.exists()) {
+              const data = userDoc.data();
+              progress = { ...INITIAL_USER_PROGRESS, ...data.progress };
+              isPro = data.isPro || false;
+              proExpiresAt = data.proExpiresAt;
+              customApiKey = data.customApiKey;
+
+              if (isPro && proExpiresAt) {
+                if (new Date(proExpiresAt) < new Date()) {
+                  isPro = false;
+                  setDoc(userDocRef, { isPro: false }, { merge: true }).catch(() => {});
+                }
+              }
             }
+          } catch (docErr) {
+            console.warn("Could not fetch user doc immediately, using cached/default progress:", docErr);
+          }
+
+          setUser({
+            username: firebaseUser.displayName || firebaseUser.email || "Learner",
+            progress,
+            uid: firebaseUser.uid,
+            isPro,
+            proExpiresAt,
+            customApiKey,
+            email: firebaseUser.email || undefined,
+          });
+          const urlView = getInitialViewFromUrl();
+          setView(urlView || AppView.DASHBOARD);
+        } else {
+          const urlView = getInitialViewFromUrl();
+          if (urlView && urlView !== AppView.LOGIN) {
+            setUser({
+              username: "Guest Explorer",
+              progress: { ...INITIAL_USER_PROGRESS },
+            });
+            setView(urlView);
+          } else {
+            setUser(null);
+            setView(AppView.LOGIN);
           }
         }
-        setUser({
-          username: firebaseUser.displayName || firebaseUser.email || "Learner",
-          progress,
-          uid: firebaseUser.uid,
-          isPro,
-          proExpiresAt,
-          customApiKey,
-          email: firebaseUser.email || undefined,
-        });
-        setView(AppView.DASHBOARD);
-      } else {
-        setUser(null);
-        setView(AppView.LOGIN);
+      } catch (err) {
+        console.error("Auth state handling error:", err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const handlePopState = () => {
+      const targetView = getInitialViewFromUrl();
+      if (targetView) {
+        setView(targetView);
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  const handleNavigate = (newView: AppView) => {
+    setView(newView);
+    if (typeof window !== "undefined") {
+      const path = viewPathMap[newView];
+      if (path && window.location.pathname !== path) {
+        window.history.pushState(null, "", path);
+      }
+    }
+  };
+
   const handleLogin = (loggedInUser: User) => {
     setUser(loggedInUser);
-    setView(AppView.DASHBOARD);
+    const urlView = getInitialViewFromUrl();
+    handleNavigate(urlView || AppView.DASHBOARD);
   };
 
   const handleLogout = async () => {
     await logoutUser();
     setUser(null);
     setView(AppView.LOGIN);
+    if (typeof window !== "undefined" && window.location.pathname !== "/") {
+      window.history.pushState(null, "", "/");
+    }
   };
 
   const handleUpdateUser = (updates: Partial<User>) => {
     if (user) {
-      setUser({ ...user, ...updates });
+      const updatedUser = { ...user, ...updates };
+      setUser(updatedUser);
+      if (updates.progress && user.uid) {
+        saveUserProgress(user.uid, updates.progress);
+      }
     }
   };
 
@@ -182,6 +293,19 @@ const App: React.FC = () => {
     if (progress.xp >= 1000) {
       addAchievement('1k_xp', 'XP Hoarder', 'Earn 1000 XP', '💎');
     }
+    // Streak achievements
+    if ((progress.streak || 0) >= 3) {
+      addAchievement('streak_3', 'Ngọn Lửa Kiên Trì', 'Duy trì chuỗi học tập 3 ngày liên tiếp', '🔥');
+    }
+    if ((progress.streak || 0) >= 7) {
+      addAchievement('streak_7', 'Tuần Lễ Rực Rỡ', 'Duy trì chuỗi học tập 7 ngày liên tiếp', '⚡');
+    }
+    if ((progress.streak || 0) >= 14) {
+      addAchievement('streak_14', 'Kỷ Luật Thép', 'Duy trì chuỗi học tập 14 ngày liên tiếp', '🛡️');
+    }
+    if ((progress.streak || 0) >= 30) {
+      addAchievement('streak_30', 'Bậc Thầy Kiên Trì', 'Duy trì chuỗi học tập 30 ngày liên tiếp', '👑');
+    }
 
     if (updated) {
       progress.achievements = newAchievements;
@@ -192,7 +316,7 @@ const App: React.FC = () => {
   const handleLessonComplete = () => {
     if (!activeLesson || !user) return;
 
-    const newProgress = { ...user.progress };
+    let newProgress = { ...user.progress };
 
     // Register root to SRS if not already present
     if (!newProgress.srs) newProgress.srs = {};
@@ -209,25 +333,55 @@ const App: React.FC = () => {
       };
     }
 
-    // Logic: Only add XP/Tree if lesson wasn't done before
+    let xpEarned = 0;
+    let lessonsDelta = 0;
+
+    // Logic: If lesson wasn't done before, award first-time XP and tree
     if (!newProgress.completedLessons?.includes(activeLesson.id)) {
       newProgress.completedLessons = newProgress.completedLessons || [];
       newProgress.completedLessons.push(activeLesson.id);
+      xpEarned += 100;
       newProgress.xp += 100;
       newProgress.garden.trees += 1;
+      lessonsDelta = 1;
 
       // If it's a remedial lesson, clear the weakness
       if (activeLesson.id.startsWith('remedial_') && newProgress.weaknesses && newProgress.weaknesses[activeLesson.root]) {
          newProgress.weaknesses[activeLesson.root].mistakeCount = 0;
          newProgress.xp += 150; // Extra reward for fixing a weakness
+         xpEarned += 150;
       }
-
-      checkAchievements(newProgress);
-
-      // Save to DB
-      saveUserProgress(user.uid!, newProgress);
-      setUser({ ...user, progress: newProgress });
+    } else {
+      // Reviewing an existing lesson still gives modest practice XP
+      xpEarned += 25;
+      newProgress.xp += 25;
+      lessonsDelta = 1;
     }
+
+    // Record weekly progress
+    newProgress = recordWeeklyActivity(newProgress, xpEarned, lessonsDelta);
+
+    // Record Daily Streak activity (updates streak and marks today completed)
+    const { updatedProgress: streakProgress } = recordStreakActivity(newProgress);
+    newProgress = streakProgress;
+
+    // Record Daily Learning Goal progress (+1 lesson, +10 study minutes)
+    const { updatedProgress: goalProgress } = recordDailyGoalProgress(newProgress, {
+      lessons: 1,
+      minutes: 10
+    });
+    newProgress = goalProgress;
+
+    checkAchievements(newProgress);
+
+    // Play triumphant completion sound & XP chime
+    soundFX.playLessonComplete();
+
+    // Save to DB
+    if (user.uid) {
+      saveUserProgress(user.uid, newProgress);
+    }
+    setUser({ ...user, progress: newProgress });
 
     // Go to Garden to celebrate
     setTimeout(() => {
@@ -243,7 +397,7 @@ const App: React.FC = () => {
   const handleAssessmentComplete = (result: TierAssessmentResult) => {
     if (!user) return;
 
-    const newProgress = { ...user.progress };
+    let newProgress = { ...user.progress };
 
     // Add result history
     newProgress.assessments = newProgress.assessments || [];
@@ -286,11 +440,19 @@ const App: React.FC = () => {
         newProgress.unlockedTiers.push(result.tierId);
       }
       newProgress.xp += 500; // Big bonus
+      soundFX.playLessonComplete();
+      newProgress = recordWeeklyActivity(newProgress, 500, 0);
     }
+
+    // Record Daily Streak activity for assessment
+    const { updatedProgress: streakProgress } = recordStreakActivity(newProgress);
+    newProgress = streakProgress;
 
     checkAchievements(newProgress);
 
-    saveUserProgress(user.uid!, newProgress);
+    if (user.uid) {
+      saveUserProgress(user.uid, newProgress);
+    }
     setUser({ ...user, progress: newProgress });
 
     // Return to dashboard after short delay or button press (handled in component)
@@ -406,7 +568,7 @@ const App: React.FC = () => {
       <Layout
         user={user}
         currentView={view}
-        onNavigate={setView}
+        onNavigate={handleNavigate}
         onLogout={handleLogout}
         onShowApiKeyModal={() => setShowApiKeyModal(true)}
       >
@@ -418,6 +580,7 @@ const App: React.FC = () => {
             appConfig={appConfig}
             onSelectLesson={handleLessonSelect}
             onTakeAssessment={handleTakeAssessment}
+            onNavigateView={handleNavigate}
           />
         )}
 
@@ -436,10 +599,12 @@ const App: React.FC = () => {
             customApiKey={user?.customApiKey} 
             user={user}
             onProgressUpdate={(xpGained) => {
-              const newProgress = { ...user.progress };
+              let newProgress = { ...user.progress };
               newProgress.xp += xpGained;
+              const { updatedProgress: streakProgress } = recordStreakActivity(newProgress);
+              newProgress = streakProgress;
               checkAchievements(newProgress);
-              saveUserProgress(user.uid!, newProgress);
+              if (user.uid) saveUserProgress(user.uid, newProgress);
               setUser({ ...user, progress: newProgress });
             }}
           />
@@ -450,12 +615,20 @@ const App: React.FC = () => {
             progress={user.progress}
             customApiKey={user?.customApiKey}
             onProgressUpdate={(xpGained) => {
-              const newProgress = { ...user.progress };
+              let newProgress = { ...user.progress };
               newProgress.xp += xpGained;
+              const { updatedProgress: streakProgress } = recordStreakActivity(newProgress);
+              newProgress = streakProgress;
               checkAchievements(newProgress);
-              saveUserProgress(user.uid!, newProgress);
+              if (user.uid) saveUserProgress(user.uid, newProgress);
               setUser({ ...user, progress: newProgress });
             }}
+            onUpdateProgress={(newProgress) => {
+              if (user.uid) saveUserProgress(user.uid, newProgress);
+              setUser({ ...user, progress: newProgress });
+            }}
+            onNavigateToTutor={() => setView(AppView.TUTOR)}
+            onNavigateToDashboard={() => setView(AppView.DASHBOARD)}
           />
         )}
 
@@ -463,7 +636,10 @@ const App: React.FC = () => {
           <ReviewPage
             user={user}
             onBack={() => setView(AppView.DASHBOARD)}
-            onUpdateProgress={(p) => setUser({ ...user, progress: p })}
+            onUpdateProgress={(p) => {
+              if (user.uid) saveUserProgress(user.uid, p);
+              setUser({ ...user, progress: p });
+            }}
           />
         )}
 
@@ -471,6 +647,22 @@ const App: React.FC = () => {
           <ProfessionalTutor
             user={user}
             onBack={() => setView(AppView.DASHBOARD)}
+            onNavigateToFlashcards={() => setView(AppView.FLASHCARDS)}
+            onUpdateProgress={(p) => {
+              if (user.uid) saveUserProgress(user.uid, p);
+              setUser({ ...user, progress: p });
+            }}
+          />
+        )}
+
+        {view === AppView.PHONICS && (
+          <PhonicsLab
+            user={user}
+            customApiKey={user?.customApiKey}
+            onUpdateProgress={(p) => {
+              saveUserProgress(user.uid!, p);
+              setUser({ ...user, progress: p });
+            }}
           />
         )}
 

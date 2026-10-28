@@ -97,9 +97,43 @@ export interface WeaknessRecord {
   lastMistakeDate: string;
 }
 
+export interface CustomFlashcard {
+  id: string;
+  word: string;
+  translation: string;
+  createdAt: string;
+}
+
+export interface WeeklyActivityPoint {
+  weekId: string;
+  label: string;
+  dateRange: string;
+  xp: number;
+  lessons: number;
+  isCurrentWeek?: boolean;
+}
+
+export type DailyGoalType = 'lessons' | 'minutes';
+
+export interface DailyGoalConfig {
+  type: DailyGoalType; // 'lessons' | 'minutes'
+  target: number;      // e.g. 2 lessons or 15 minutes
+  currentLessonsToday: number;
+  currentMinutesToday: number;
+  lastGoalDate?: string; // YYYY-MM-DD
+  goalCompletedDates?: string[]; // history of dates when goal was completed
+}
+
 export interface UserProgress {
   xp: number;
+  streak?: number;
+  longestStreak?: number;
+  lastActiveDate?: string; // YYYY-MM-DD
+  streakHistory?: string[]; // array of YYYY-MM-DD dates
   completedLessons: string[];
+  customFlashcards?: CustomFlashcard[];
+  weeklyActivity?: WeeklyActivityPoint[];
+  dailyGoal?: DailyGoalConfig;
   unlockedTiers: number[];
   garden: {
     trees: number;
@@ -149,7 +183,28 @@ export enum AppView {
   PROFILE = 'PROFILE',
   FLASHCARDS = 'FLASHCARDS',
   REVIEW = 'REVIEW',
-  TUTOR = 'TUTOR'
+  TUTOR = 'TUTOR',
+  PHONICS = 'PHONICS'
+}
+
+export interface PhonicsSyllable {
+  syllable: string;
+  type: string;
+  rule: string;
+  ipa: string;
+  isStressed: boolean;
+  explanation: string;
+}
+
+export interface PhonicsDissection {
+  word: string;
+  syllables: string[];
+  stressIndex: number;
+  ipa: string;
+  vietnameseReading: string;
+  translation: string;
+  breakdown: PhonicsSyllable[];
+  rulesApplied: string[];
 }
 
 export interface MorphologyAnalysis {

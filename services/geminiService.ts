@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { DrillQuestion, Lesson, PartType, RemediationPlan, WordPart } from '../types';
+import { DrillQuestion, Lesson, PartType, RemediationPlan, WordPart, PhonicsDissection } from '../types';
 import { db } from '../firebase';
 import { doc, getDoc, setDoc, collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 
@@ -378,4 +378,55 @@ export const evaluateAssessment = async (tierId: number, score: number, total: n
         const response = await executeWithRotation((ai) => ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt }), customKey);
         return getText(response);
     } catch (e) { return "Assessment complete."; }
+};
+
+export const analyzePhonicsWithAI = async (word: string, customKey?: string): Promise<PhonicsDissection | null> => {
+    try {
+        const prompt = `
+          Bạn là chuyên gia ngữ âm Phonics và phân tích âm tiết tiếng Anh theo 4 quy luật cốt lõi:
+          1. Quy luật Nguyên âm theo Cấu trúc Âm tiết (CVC: âm ngắn, CVCe/Magic E: âm dài, CV mở: âm dài, CVVC: nguyên âm đôi, Bossy R: ar, or, er/ir/ur).
+          2. Quy luật Phụ âm biến đổi & Digraphs (C/G mềm trước e, i, y; C/G cứng trước a, o, u; Digraphs sh, ch, th, ph/gh; Âm câm kn-, wr-, -mb/-bt, -gh-).
+          3. Quy luật Trọng âm & Âm lướt Schwa /ə/ (Âm tiết không nhận trọng âm thường lướt thành /ə/ hoặc /ɪ/).
+          4. Các cụm đuôi cố định (-tion, -sion, -ture, -ous, -ble, -tle, -cle).
+
+          Hãy phân tích từ tiếng Anh này một cách chi tiết, chính xác: "${word.trim()}".
+
+          Trả về duy nhất JSON hợp lệ (không kèm markdown ngoài JSON):
+          {
+            "word": "${word.trim()}",
+            "syllables": ["In", "for", "ma", "tion"],
+            "stressIndex": 2,
+            "ipa": "/ˌɪn.fərˈmeɪ.ʃən/",
+            "vietnameseReading": "in-phờ-MÂY-sần",
+            "translation": "thông tin",
+            "breakdown": [
+              {
+                "syllable": "In",
+                "type": "Âm tiết đóng (CVC)",
+                "rule": "Nguyên âm ngắn (Short I)",
+                "ipa": "/ɪn/",
+                "isStressed": false,
+                "explanation": "Nguyên âm I bị chặn bởi phụ âm n -> đọc ngắn /ɪ/"
+              }
+            ],
+            "rulesApplied": [
+              "Âm tiết đóng (CVC)",
+              "Bossy R + Âm lướt Schwa",
+              "Âm tiết mở nhận trọng âm (CV)",
+              "Cụm đuôi cố định -tion"
+            ]
+          }
+        `;
+
+        const response = await executeWithRotation((ai) => ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: prompt,
+            config: { responseMimeType: "application/json" }
+        }), customKey);
+
+        return JSON.parse(getText(response));
+    } catch (e) {
+        console.error("Phonics AI Analysis Error:", e);
+        return null;
+    }
 };

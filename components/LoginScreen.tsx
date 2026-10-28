@@ -30,15 +30,33 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
             <p className="text-stone-500 text-center mt-2">Unlock the building blocks of English.</p>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-4">
             <button 
                 onClick={handleGoogleLogin}
                 disabled={loading}
-                className="w-full bg-stone-900 text-white py-3 rounded-xl font-bold hover:bg-stone-800 transition-transform active:scale-95 shadow-lg flex items-center justify-center gap-2"
+                className="w-full bg-stone-900 text-white py-3 rounded-xl font-bold hover:bg-stone-800 transition-transform active:scale-95 shadow-lg flex items-center justify-center gap-2 cursor-pointer"
             >
                 {loading ? <Loader2 className="animate-spin" size={20} /> : 'Sign in with Google'}
             </button>
-            <p className="text-xs text-stone-400 mt-2 text-center">Your progress will be saved securely.</p>
+
+            <button
+                type="button"
+                onClick={() => onLogin({
+                  username: "Guest Explorer",
+                  progress: {
+                    xp: 50,
+                    completedLessons: [],
+                    unlockedTiers: [1],
+                    garden: { trees: 1, level: 1 },
+                    assessments: [],
+                  }
+                })}
+                className="w-full bg-stone-100 hover:bg-stone-200 text-stone-700 py-3 rounded-xl font-medium transition-all text-sm flex items-center justify-center gap-2 cursor-pointer"
+            >
+                <UserCircle2 size={18} />
+                Explore as Guest / Dùng thử ngay
+            </button>
+            <p className="text-xs text-stone-400 mt-2 text-center">Your progress will be saved securely upon signing in.</p>
         </div>
       </div>
     </div>

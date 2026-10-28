@@ -1,5 +1,6 @@
 import React from "react";
 import { AppView, User } from "../types";
+import { StreakBadge } from "./DailyStreakWidget";
 import {
   Book,
   Leaf,
@@ -15,7 +16,10 @@ import {
   User as UserIcon,
   Layers,
   BrainCircuit,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
+import { soundFX } from "../utils/soundEffects";
 
 interface LayoutProps {
   user: User;
@@ -35,9 +39,11 @@ export const Layout: React.FC<LayoutProps> = ({
   children,
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+  const [isMuted, setIsMuted] = React.useState(() => soundFX.getIsMuted());
 
   const navItems = [
     { id: AppView.DASHBOARD, label: "Curriculum", icon: Book },
+    { id: AppView.PHONICS, label: "Chữ Cái & IPA Phonics", icon: Volume2 },
     { id: AppView.GARDEN, label: "Word Garden", icon: Leaf },
     { id: AppView.FLASHCARDS, label: "Daily Flashcards", icon: Layers },
     { id: AppView.REVIEW, label: "Ôn Tập (SRS)", icon: BrainCircuit },
@@ -142,7 +148,30 @@ export const Layout: React.FC<LayoutProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            {/* Audio Feedback Toggle */}
+            <button
+              onClick={() => {
+                const nowMuted = soundFX.toggleMute();
+                setIsMuted(nowMuted);
+                if (!nowMuted) {
+                  soundFX.playCardFlip();
+                }
+              }}
+              className={`p-2 rounded-full border transition-all cursor-pointer ${
+                isMuted
+                  ? 'bg-stone-100 text-stone-400 border-stone-200 hover:text-stone-700'
+                  : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 shadow-2xs'
+              }`}
+              title={isMuted ? 'Bật âm thanh tương tác (Game Sound FX)' : 'Tắt âm thanh tương tác'}
+            >
+              {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+            </button>
+
+            <StreakBadge
+              progress={user.progress}
+              onClick={() => onNavigate(AppView.DASHBOARD)}
+            />
             {user.isPro && (
               <span className="hidden sm:flex items-center gap-1 text-amber-700 text-xs font-bold px-2.5 py-1 bg-amber-100 border border-amber-200 rounded-full">
                 <Shield size={12} /> PRO

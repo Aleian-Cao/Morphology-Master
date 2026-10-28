@@ -208,11 +208,23 @@ export const CURRICULUM: Tier[] = [
 
 export const INITIAL_USER_PROGRESS: UserProgress = {
   xp: 0,
+  streak: 0,
+  longestStreak: 0,
+  lastActiveDate: undefined,
+  streakHistory: [],
   completedLessons: [],
+  customFlashcards: [],
   unlockedTiers: [1],
   garden: {
     trees: 0,
     level: 1
+  },
+  dailyGoal: {
+    type: 'lessons',
+    target: 2,
+    currentLessonsToday: 0,
+    currentMinutesToday: 0,
+    goalCompletedDates: []
   },
   assessments: [],
   achievements: [],

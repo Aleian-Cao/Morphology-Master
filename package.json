@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "sitemap": "node scripts/generate-sitemap.mjs",
+    "build": "node scripts/generate-sitemap.mjs && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -13,16 +14,19 @@
     "@langchain/core": "^1.1.44",
     "@langchain/google-genai": "^2.1.30",
     "@langchain/langgraph": "^1.2.9",
+    "@langchain/langgraph-checkpoint": "^1.0.1",
     "d3": "^7.9.0",
     "firebase": "^12.10.0",
     "js-yaml": "^4.1.1",
     "lucide-react": "^0.563.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "react-markdown": "^10.1.0"
+    "react-markdown": "^10.1.0",
+    "recharts": "^3.10.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.4",
+    "@types/d3": "^7.4.3",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
     "tailwindcss": "^4.2.4",

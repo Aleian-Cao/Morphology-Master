@@ -8,6 +8,9 @@ import {
   GripVertical,
   Lock,
   LogIn,
+  Users,
+  Search,
+  Sparkles,
 } from "lucide-react";
 import { db, auth } from "../firebase";
 import {
@@ -35,6 +38,9 @@ export const AdminPage: React.FC = () => {
 
   const [adminKeys, setAdminKeys] = useState<any[]>([]);
   const [upgradeRequests, setUpgradeRequests] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [userSearch, setUserSearch] = useState("");
+  const [usersLoading, setUsersLoading] = useState(false);
   const [adminLoading, setAdminLoading] = useState(false);
 
   const [config, setConfig] = useState<AppConfig>({
@@ -59,9 +65,42 @@ export const AdminPage: React.FC = () => {
       if (firebaseUser?.email === adminEmail) {
         loadAdminKeys();
         loadUpgradeRequests();
+        loadUsers();
       }
     }
   }, [isAuthenticated, firebaseUser]);
+
+  const loadUsers = async () => {
+    if (firebaseUser?.email !== adminEmail) return;
+    setUsersLoading(true);
+    try {
+      const snapshot = await getDocs(collection(db, "users"));
+      setUsers(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+    } catch (e) {
+      console.error("Failed to load users", e);
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  const handleTogglePro = async (userId: string, currentStatus: boolean) => {
+    if (firebaseUser?.email !== adminEmail) return;
+    try {
+      const userRef = doc(db, "users", userId);
+      const newStatus = !currentStatus;
+      const updates: any = { isPro: newStatus };
+      if (newStatus) {
+        const expiresAt = new Date();
+        expiresAt.setMonth(expiresAt.getMonth() + 1);
+        updates.proExpiresAt = expiresAt.toISOString();
+      }
+      await setDoc(userRef, updates, { merge: true });
+      await loadUsers();
+    } catch (e) {
+      console.error(e);
+      alert("Failed to update user status");
+    }
+  };
 
   const loadUpgradeRequests = async () => {
     try {
@@ -576,6 +615,143 @@ export const AdminPage: React.FC = () => {
                   <tr>
                     <td colSpan={5} className="p-8 text-center text-stone-500">
                       No upgrade requests found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* User Management & Analytics */}
+        <div className="bg-stone-900 p-8 rounded-2xl border border-stone-800">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+            <div>
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                <Users className="text-amber-500" />
+                User Directory & Analytics ({users.length} registered)
+              </h2>
+              <p className="text-stone-400 text-sm mt-1">
+                Theo dõi tất cả tài khoản học viên, người dùng mới đăng ký và phân quyền Pro.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              <div className="relative flex-1 md:w-64">
+                <Search size={16} className="absolute left-3 top-3 text-stone-500" />
+                <input
+                  type="text"
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
+                  placeholder="Tìm email, ID người dùng..."
+                  className="w-full pl-9 pr-3 py-2 bg-stone-950 border border-stone-700 rounded-lg text-sm text-stone-200 focus:outline-none focus:border-amber-500"
+                />
+              </div>
+              <button
+                onClick={loadUsers}
+                disabled={usersLoading}
+                className="bg-stone-800 hover:bg-stone-700 disabled:opacity-50 text-stone-200 font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-colors border border-stone-700 text-sm whitespace-nowrap"
+              >
+                {usersLoading ? "Loading..." : "Refresh"}
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+            <div className="bg-stone-950 p-4 rounded-xl border border-stone-800">
+              <span className="text-xs text-stone-500 uppercase tracking-wider font-semibold">Tổng học viên</span>
+              <p className="text-2xl font-bold text-stone-100 mt-1">{users.length}</p>
+            </div>
+            <div className="bg-stone-950 p-4 rounded-xl border border-stone-800">
+              <span className="text-xs text-stone-500 uppercase tracking-wider font-semibold">Tài khoản PRO</span>
+              <p className="text-2xl font-bold text-amber-400 mt-1">{users.filter(u => u.isPro).length}</p>
+            </div>
+            <div className="bg-stone-950 p-4 rounded-xl border border-stone-800">
+              <span className="text-xs text-stone-500 uppercase tracking-wider font-semibold">Thẻ AI Flashcard</span>
+              <p className="text-2xl font-bold text-cyan-400 mt-1">
+                {users.reduce((acc, u) => acc + (u.progress?.customFlashcards?.length || 0), 0)}
+              </p>
+            </div>
+            <div className="bg-stone-950 p-4 rounded-xl border border-stone-800">
+              <span className="text-xs text-stone-500 uppercase tracking-wider font-semibold">Tổng điểm XP</span>
+              <p className="text-2xl font-bold text-emerald-400 mt-1">
+                {users.reduce((acc, u) => acc + (u.progress?.xp || 0), 0).toLocaleString()}
+              </p>
+            </div>
+          </div>
+
+          {/* Users Table */}
+          <div className="bg-stone-950 rounded-xl overflow-x-auto border border-stone-800">
+            <table className="w-full text-left">
+              <thead className="bg-stone-900 text-stone-400 text-xs uppercase tracking-wider">
+                <tr>
+                  <th className="p-4">Học viên</th>
+                  <th className="p-4">Gói dịch vụ</th>
+                  <th className="p-4">Tiến độ (XP / Bài)</th>
+                  <th className="p-4">Flashcard đã lưu</th>
+                  <th className="p-4">Hạn Pro</th>
+                  <th className="p-4">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-800 text-sm">
+                {users
+                  .filter(u => 
+                    (u.email || '').toLowerCase().includes(userSearch.toLowerCase()) ||
+                    (u.username || '').toLowerCase().includes(userSearch.toLowerCase()) ||
+                    (u.id || '').toLowerCase().includes(userSearch.toLowerCase())
+                  )
+                  .map((u) => {
+                    const customCount = u.progress?.customFlashcards?.length || 0;
+                    const completedCount = u.progress?.completedLessons?.length || 0;
+                    const xp = u.progress?.xp || 0;
+                    return (
+                      <tr key={u.id} className="hover:bg-stone-900/50 transition-colors">
+                        <td className="p-4">
+                          <div className="font-medium text-stone-200">{u.username || u.email || 'Học viên'}</div>
+                          <div className="text-xs text-stone-500 font-mono">{u.email || u.id}</div>
+                        </td>
+                        <td className="p-4">
+                          {u.isPro ? (
+                            <span className="px-2.5 py-1 bg-amber-900/30 text-amber-400 rounded-md text-xs font-bold border border-amber-900/50">
+                              PRO
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-1 bg-stone-800 text-stone-400 rounded-md text-xs font-medium border border-stone-700">
+                              FREE
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-4">
+                          <div className="text-stone-300 font-bold">{xp} XP</div>
+                          <div className="text-xs text-stone-500">{completedCount} bài học hoàn thành</div>
+                        </td>
+                        <td className="p-4">
+                          <div className="text-stone-300 font-medium">{customCount} thẻ</div>
+                        </td>
+                        <td className="p-4 text-xs text-stone-400">
+                          {u.proExpiresAt ? new Date(u.proExpiresAt).toLocaleDateString() : '-'}
+                        </td>
+                        <td className="p-4">
+                          <button
+                            onClick={() => handleTogglePro(u.id, !!u.isPro)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                              u.isPro
+                                ? 'bg-red-950 text-red-400 hover:bg-red-900 border border-red-800/50'
+                                : 'bg-amber-500 text-stone-950 hover:bg-amber-400'
+                            }`}
+                          >
+                            {u.isPro ? 'Hạ xuống Free' : 'Kích hoạt Pro (+1 tháng)'}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                {users.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-stone-500">
+                      {firebaseUser?.email !== adminEmail
+                        ? "Vui lòng đăng nhập với tài khoản Google Admin (10a10caonguyenthanhan@gmail.com) để xem danh sách học viên."
+                        : "Chưa có dữ liệu người dùng nào."}
                     </td>
                   </tr>
                 )}

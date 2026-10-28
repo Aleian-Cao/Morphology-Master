@@ -10,21 +10,28 @@ export const loginWithGoogle = async (): Promise<User | null> => {
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
     
-    // Check if user exists in Firestore
+    // Check if user exists in Firestore with fallback
     const userDocRef = doc(db, 'users', user.uid);
-    const userDoc = await getDoc(userDocRef);
-    
     let progress = { ...INITIAL_USER_PROGRESS };
-    
-    if (userDoc.exists()) {
-      progress = userDoc.data().progress;
-    } else {
-      // Create new user in Firestore
-      await setDoc(userDocRef, {
-        username: user.displayName || user.email || 'Learner',
-        progress,
-        uid: user.uid
-      });
+
+    try {
+      const userDoc = await Promise.race([
+        getDoc(userDocRef),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3500))
+      ]);
+      
+      if (userDoc && userDoc.exists()) {
+        progress = userDoc.data().progress;
+      } else {
+        // Create new user in Firestore
+        setDoc(userDocRef, {
+          username: user.displayName || user.email || 'Learner',
+          progress,
+          uid: user.uid
+        }).catch(err => console.warn("Background user creation queued:", err));
+      }
+    } catch (e) {
+      console.warn("Could not reach Firestore immediately during login, continuing with initial progress:", e);
     }
     
     return { username: user.displayName || user.email || 'Learner', progress, uid: user.uid };
