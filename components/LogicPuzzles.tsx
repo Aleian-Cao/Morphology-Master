@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Puzzle, Loader2, Brain, Trophy, ArrowRight, CheckCircle2, XCircle } from 'lucide-react';
-import { GoogleGenAI, Type } from '@google/genai';
 import { User } from '../types';
+import { callServerGemini } from '../services/geminiService';
 
 interface LogicPuzzlesProps {
   customApiKey?: string;
@@ -34,10 +34,6 @@ export const LogicPuzzles: React.FC<LogicPuzzlesProps> = ({ customApiKey, user, 
     setPuzzle(null);
 
     try {
-      const apiKey = customApiKey || process.env.GEMINI_API_KEY;
-      if (!apiKey) throw new Error("API Key is missing");
-
-      const ai = new GoogleGenAI({ apiKey });
       const prompt = `Generate a morphological logic puzzle for an English learner (Vietnamese speaker).
 The puzzle should be either a "morphology_chain" (transforming a word by changing affixes) or "decoding" (guessing a word based on its root/affix meanings).
 
@@ -46,41 +42,18 @@ Return a JSON object matching this schema:
   "type": "morphology_chain" or "decoding",
   "question": "The puzzle prompt in English",
   "question_vi": "The puzzle prompt in Vietnamese",
-  "clues": ["Clue 1", "Clue 2"], // 2-3 clues
+  "clues": ["Clue 1", "Clue 2"],
   "targetWord": "The exact English word they need to guess",
   "explanation": "Explanation of the morphological breakdown",
   "explanation_vi": "Vietnamese explanation of the breakdown"
 }`;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              type: { type: Type.STRING },
-              question: { type: Type.STRING },
-              question_vi: { type: Type.STRING },
-              clues: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING }
-              },
-              targetWord: { type: Type.STRING },
-              explanation: { type: Type.STRING },
-              explanation_vi: { type: Type.STRING }
-            },
-            required: ["type", "question", "question_vi", "clues", "targetWord", "explanation", "explanation_vi"]
-          }
-        }
-      });
-
-      const data = JSON.parse(response.text || '{}');
+      const text = await callServerGemini(prompt, { responseMimeType: 'application/json' }, customApiKey);
+      const data = JSON.parse(text || '{}');
       setPuzzle(data);
     } catch (err) {
       console.error(err);
-      setError('Failed to generate puzzle. Please check your API key or try again.');
+      setError('Failed to generate puzzle. Please try again.');
     }
     setLoading(false);
   };

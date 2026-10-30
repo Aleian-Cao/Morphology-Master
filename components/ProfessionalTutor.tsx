@@ -62,7 +62,7 @@ export const ProfessionalTutor: React.FC<ProfessionalTutorProps> = ({ user, onBa
 
       const stream = await app.stream(initialState, { configurable: { thread_id: "test-thread-" + Date.now() } });
       let finalState: any = null;
-      for await (const s of stream) {
+      for await (const s of (stream as AsyncIterable<any>)) {
           if (s.guardrail_node) {
               setCurrentStatus('Trích xuất phân loại...');
           }

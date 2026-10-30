@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Search, Loader2, Network, Puzzle, Languages, Check, X } from 'lucide-react';
-import { GoogleGenAI, Type } from '@google/genai';
 import { WordTree } from './WordTree';
+import { callServerGemini } from '../services/geminiService';
 
 interface WordTreePageProps {
   customApiKey?: string;
@@ -45,10 +45,6 @@ export const WordTreePage: React.FC<WordTreePageProps> = ({ customApiKey }) => {
     setSelectedSuffix(null);
 
     try {
-      const apiKey = customApiKey || process.env.GEMINI_API_KEY;
-      if (!apiKey) throw new Error("API Key is missing");
-
-      const ai = new GoogleGenAI({ apiKey });
       const prompt = `Analyze the English morphological root "${rootInput.trim()}".
 Provide a comprehensive word family matrix and bilingual cognate mapping.
 
@@ -59,8 +55,8 @@ Return a JSON object matching this schema:
   "meaning_vi": "Vietnamese meaning of the root",
   "sino_vietnamese_cognate": "Sino-Vietnamese equivalent roots (e.g., 'Khán', 'Thị', 'Quan')",
   "sino_vietnamese_explanation": "Brief explanation of how the Sino-Vietnamese root maps to the English root's logic",
-  "prefixes": [{"text": "prefix", "meaning_vi": "meaning"}], // List common prefixes used with this root
-  "suffixes": [{"text": "suffix", "meaning_vi": "meaning"}], // List common suffixes used with this root
+  "prefixes": [{"text": "prefix", "meaning_vi": "meaning"}],
+  "suffixes": [{"text": "suffix", "meaning_vi": "meaning"}],
   "validWords": [
     {
       "word": "full word (e.g., inspect)",
@@ -73,63 +69,12 @@ Return a JSON object matching this schema:
 }
 Include at least 6-10 valid words in the validWords array.`;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              root: { type: Type.STRING },
-              meaning_en: { type: Type.STRING },
-              meaning_vi: { type: Type.STRING },
-              sino_vietnamese_cognate: { type: Type.STRING },
-              sino_vietnamese_explanation: { type: Type.STRING },
-              prefixes: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    text: { type: Type.STRING },
-                    meaning_vi: { type: Type.STRING }
-                  }
-                }
-              },
-              suffixes: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    text: { type: Type.STRING },
-                    meaning_vi: { type: Type.STRING }
-                  }
-                }
-              },
-              validWords: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    word: { type: Type.STRING },
-                    prefix: { type: Type.STRING, nullable: true },
-                    suffix: { type: Type.STRING, nullable: true },
-                    meaning_vi: { type: Type.STRING },
-                    formula: { type: Type.STRING }
-                  }
-                }
-              }
-            },
-            required: ["root", "meaning_en", "meaning_vi", "sino_vietnamese_cognate", "sino_vietnamese_explanation", "prefixes", "suffixes", "validWords"]
-          }
-        }
-      });
-
-      const data = JSON.parse(response.text || '{}');
+      const text = await callServerGemini(prompt, { responseMimeType: 'application/json' }, customApiKey);
+      const data = JSON.parse(text || '{}');
       setTreeData(data);
     } catch (err) {
       console.error(err);
-      setError('Failed to generate word tree. Please try another root or check your API key.');
+      setError('Failed to generate word tree. Please try another root.');
     }
     setLoading(false);
   };

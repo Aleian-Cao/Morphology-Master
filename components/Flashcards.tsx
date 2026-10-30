@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserProgress, Lesson, CustomFlashcard } from '../types';
 import { CURRICULUM } from '../constants';
-import { Layers, Check, X, RotateCcw, Loader2, Bot, BookmarkCheck, Trash2, Search, SlidersHorizontal } from 'lucide-react';
+import { Layers, Check, X, RotateCcw, Loader2, Bot, BookmarkCheck, Trash2, Search, SlidersHorizontal, Volume2, VolumeX } from 'lucide-react';
 import { enrichLessonData } from '../services/geminiService';
 import { soundFX } from '../utils/soundEffects';
 
@@ -51,10 +51,39 @@ export const Flashcards: React.FC<FlashcardsProps> = ({
   const [allCards, setAllCards] = useState<WordCard[]>([]);
   const [deck, setDeck] = useState<WordCard[]>([]);
   const [loadingDeck, setLoadingDeck] = useState(true);
-  
+
+  // Audio / Speech settings
+  const [autoSpeak, setAutoSpeak] = useState(false);
+  const [speakingWord, setSpeakingWord] = useState<string | null>(null);
+  const [speechSpeed, setSpeechSpeed] = useState<'normal' | 'slow'>('normal');
+
   // Custom cards management modal
   const [showManager, setShowManager] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const speak = (text: string, e?: React.MouseEvent, forceSlow?: boolean) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    if (!('speechSynthesis' in window)) return;
+
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'en-US';
+      const rate = forceSlow ? 0.65 : (speechSpeed === 'slow' ? 0.65 : 0.9);
+      utterance.rate = rate;
+
+      setSpeakingWord(text);
+      utterance.onend = () => setSpeakingWord(null);
+      utterance.onerror = () => setSpeakingWord(null);
+
+      window.speechSynthesis.speak(utterance);
+    } catch (err) {
+      console.error('Speech synthesis error:', err);
+      setSpeakingWord(null);
+    }
+  };
 
   useEffect(() => {
     const buildDeck = async () => {
@@ -133,6 +162,16 @@ export const Flashcards: React.FC<FlashcardsProps> = ({
 
     buildDeck();
   }, [progress.completedLessons, progress.customFlashcards, customApiKey]);
+
+  // Auto-speak effect when index changes if autoSpeak is enabled
+  useEffect(() => {
+    if (autoSpeak && deck[currentIndex]?.word) {
+      const timer = setTimeout(() => {
+        speak(deck[currentIndex].word);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [currentIndex, autoSpeak, deck]);
 
   // Apply filter when allCards or filterMode changes
   useEffect(() => {
@@ -293,6 +332,12 @@ export const Flashcards: React.FC<FlashcardsProps> = ({
     c.translation.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const currentCard = deck[currentIndex] || deck[0];
+  if (!currentCard) return null;
+  if (!currentCard.colorTheme) {
+    currentCard.colorTheme = THEMES[0];
+  }
+
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto">
       {/* Header Bar */}
@@ -309,7 +354,7 @@ export const Flashcards: React.FC<FlashcardsProps> = ({
           </div>
         </div>
         
-        <div className="flex items-center gap-2 self-start md:self-auto">
+        <div className="flex items-center gap-2 flex-wrap self-start md:self-auto">
           {customCardsCount > 0 && (
             <button
               onClick={() => setShowManager(true)}
@@ -326,43 +371,74 @@ export const Flashcards: React.FC<FlashcardsProps> = ({
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-1">
-        <button
-          onClick={() => setFilterMode('all')}
-          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-colors whitespace-nowrap ${
-            filterMode === 'all'
-              ? 'bg-stone-900 text-white shadow-xs'
-              : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'
-          }`}
-        >
-          Tất cả thẻ ({allCards.length})
-        </button>
-        {curriculumCardsCount > 0 && (
+      {/* Filter and Audio Controls Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        {/* Filter Tabs */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
           <button
-            onClick={() => setFilterMode('curriculum')}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-colors whitespace-nowrap ${
-              filterMode === 'curriculum'
+            onClick={() => setFilterMode('all')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-colors whitespace-nowrap ${
+              filterMode === 'all'
                 ? 'bg-stone-900 text-white shadow-xs'
                 : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'
             }`}
           >
-            Từ gốc bài học ({curriculumCardsCount})
+            Tất cả ({allCards.length})
           </button>
-        )}
-        {customCardsCount > 0 && (
+          {curriculumCardsCount > 0 && (
+            <button
+              onClick={() => setFilterMode('curriculum')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-colors whitespace-nowrap ${
+                filterMode === 'curriculum'
+                  ? 'bg-stone-900 text-white shadow-xs'
+                  : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'
+              }`}
+            >
+              Bài học gốc ({curriculumCardsCount})
+            </button>
+          )}
+          {customCardsCount > 0 && (
+            <button
+              onClick={() => setFilterMode('custom')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+                filterMode === 'custom'
+                  ? 'bg-stone-900 text-white shadow-xs'
+                  : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'
+              }`}
+            >
+              <Bot size={14} className={filterMode === 'custom' ? 'text-amber-400' : 'text-stone-500'} />
+              Từ vựng AI ({customCardsCount})
+            </button>
+          )}
+        </div>
+
+        {/* Audio Speech Settings Bar */}
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
           <button
-            onClick={() => setFilterMode('custom')}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-colors whitespace-nowrap flex items-center gap-1.5 ${
-              filterMode === 'custom'
-                ? 'bg-stone-900 text-white shadow-xs'
-                : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'
+            onClick={() => setAutoSpeak(!autoSpeak)}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors border ${
+              autoSpeak 
+                ? 'bg-amber-500 text-white border-amber-500 shadow-xs' 
+                : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
             }`}
+            title={autoSpeak ? "Đang bật: Tự động phát âm khi chuyển thẻ" : "Bật tự động phát âm khi chuyển thẻ"}
           >
-            <Bot size={14} className={filterMode === 'custom' ? 'text-amber-400' : 'text-stone-500'} />
-            Từ vựng AI tạo ({customCardsCount})
+            {autoSpeak ? <Volume2 size={15} /> : <VolumeX size={15} className="text-stone-400" />}
+            <span>Tự đọc: {autoSpeak ? 'Bật' : 'Tắt'}</span>
           </button>
-        )}
+
+          <button
+            onClick={() => setSpeechSpeed(speechSpeed === 'normal' ? 'slow' : 'normal')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors border ${
+              speechSpeed === 'slow'
+                ? 'bg-sky-50 text-sky-700 border-sky-300'
+                : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
+            }`}
+            title="Đổi tốc độ đọc giọng Mỹ (US)"
+          >
+            <span>{speechSpeed === 'slow' ? '🐢 Chậm (0.65x)' : '⚡ Chuẩn (0.9x)'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Flashcard with fixed responsive height to guarantee never squishing */}
@@ -382,12 +458,44 @@ export const Flashcards: React.FC<FlashcardsProps> = ({
             </div>
 
             <div className="my-auto px-4 py-2 flex flex-col items-center justify-center">
-              <h2 className="text-3xl sm:text-5xl md:text-6xl font-serif font-bold text-white drop-shadow-md break-words max-w-full leading-tight">
-                {currentCard.word}
-              </h2>
-              {currentCard.root && currentCard.root !== 'Custom' && (
-                <span className="mt-3 text-white/70 text-xs font-medium">Gốc từ: {currentCard.root}</span>
-              )}
+              <div className="flex items-center justify-center gap-3 sm:gap-4 max-w-full">
+                <h2 className="text-3xl sm:text-5xl md:text-6xl font-serif font-bold text-white drop-shadow-md break-words max-w-full leading-tight">
+                  {currentCard.word}
+                </h2>
+                
+                {/* Audio pronounce button */}
+                <button
+                  type="button"
+                  onClick={(e) => speak(currentCard.word, e)}
+                  className={`p-3 rounded-full transition-all duration-200 backdrop-blur-md shadow-lg flex items-center justify-center shrink-0 ${
+                    speakingWord === currentCard.word
+                      ? 'bg-white text-stone-900 scale-110 ring-4 ring-white/50 animate-pulse'
+                      : 'bg-white/25 hover:bg-white/40 text-white hover:scale-105 active:scale-95'
+                  }`}
+                  title="Nghe phát âm từ tiếng Anh (US)"
+                  aria-label="Phát âm từ"
+                >
+                  <Volume2 size={24} className={speakingWord === currentCard.word ? 'animate-bounce text-amber-500' : ''} />
+                </button>
+              </div>
+
+              {/* Sub-bar on front with slow speech and root */}
+              <div className="flex items-center gap-2 mt-4 flex-wrap justify-center">
+                <button
+                  type="button"
+                  onClick={(e) => speak(currentCard.word, e, true)}
+                  className="text-xs font-medium bg-black/30 hover:bg-black/45 text-white/95 px-3 py-1 rounded-full flex items-center gap-1.5 transition-colors backdrop-blur-xs"
+                  title="Nghe đọc tốc độ chậm từng âm"
+                >
+                  <span>🐢 Nghe chậm</span>
+                </button>
+
+                {currentCard.root && currentCard.root !== 'Custom' && (
+                  <span className="text-white/80 text-xs font-medium bg-black/20 px-3 py-1 rounded-full">
+                    Gốc từ: {currentCard.root}
+                  </span>
+                )}
+              </div>
             </div>
 
             <p className="text-white/90 text-xs sm:text-sm flex items-center gap-2 bg-black/25 backdrop-blur-sm px-4 py-2 rounded-full font-medium">
@@ -398,7 +506,27 @@ export const Flashcards: React.FC<FlashcardsProps> = ({
           {/* Back */}
           <div className={`absolute inset-0 w-full h-full backface-hidden ${currentCard.colorTheme.back} text-white rounded-3xl shadow-xl border border-stone-700 flex flex-col items-center justify-between p-6 sm:p-8 text-center rotate-y-180 select-none overflow-y-auto`}>
             <div className="w-full flex justify-between items-center text-stone-400 text-xs font-semibold">
-              <span className="font-mono text-stone-300 truncate max-w-[200px]">{currentCard.word}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-stone-200 font-bold truncate max-w-[160px] text-sm sm:text-base">
+                  {currentCard.word}
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => speak(currentCard.word, e)}
+                  className="p-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-amber-400 hover:text-amber-300 transition-colors"
+                  title="Nghe phát âm chuẩn"
+                >
+                  <Volume2 size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => speak(currentCard.word, e, true)}
+                  className="px-2 py-0.5 rounded text-[11px] bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white transition-colors"
+                  title="Đọc chậm"
+                >
+                  🐢 Chậm
+                </button>
+              </div>
               <span className={currentCard.isCustom ? 'text-amber-400' : 'text-blue-400'}>
                 {currentCard.isCustom ? 'Thẻ lưu từ AI Tutor' : 'Bài học gốc'}
               </span>
@@ -412,12 +540,22 @@ export const Flashcards: React.FC<FlashcardsProps> = ({
               
               {currentCard.parts && currentCard.parts.length > 0 && (
                 <div className="w-full max-w-md bg-stone-800/80 p-3 sm:p-4 rounded-xl border border-stone-700">
-                  <p className="text-stone-400 text-[10px] font-bold uppercase tracking-wider mb-2 text-center">Cấu trúc hình vị</p>
+                  <p className="text-stone-400 text-[10px] font-bold uppercase tracking-wider mb-2 text-center">
+                    Cấu trúc hình vị (Chạm để nghe từng phần)
+                  </p>
                   <div className="flex flex-wrap justify-center gap-1.5">
                     {currentCard.parts.map((part, pIdx) => (
-                      <span key={pIdx} className="text-xs px-2.5 py-1 rounded-lg font-medium bg-stone-700/80 text-stone-200">
-                        {part.text} <span className="opacity-60 text-[10px]">({part.meaning_vi || part.meaning})</span>
-                      </span>
+                      <button 
+                        key={pIdx} 
+                        type="button"
+                        onClick={(e) => speak(part.text, e)}
+                        className="text-xs px-2.5 py-1.5 rounded-lg font-medium bg-stone-700 hover:bg-stone-600 text-stone-200 flex items-center gap-1.5 transition-colors group cursor-pointer"
+                        title={`Nghe phát âm thành phần "${part.text}"`}
+                      >
+                        <Volume2 size={12} className="text-stone-400 group-hover:text-amber-400" />
+                        <span className="font-semibold text-white">{part.text}</span>
+                        <span className="opacity-70 text-[10px]">({part.meaning_vi || part.meaning})</span>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -500,13 +638,23 @@ export const Flashcards: React.FC<FlashcardsProps> = ({
                         {card.createdAt ? new Date(card.createdAt).toLocaleDateString() : 'Vừa tạo'}
                       </span>
                     </div>
-                    <button
-                      onClick={() => handleDeleteCustomCard(card.id)}
-                      className="p-2 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Xóa thẻ này"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => speak(card.word)}
+                        className="p-2 text-stone-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                        title="Nghe phát âm từ này"
+                      >
+                        <Volume2 size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCustomCard(card.id)}
+                        className="p-2 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Xóa thẻ này"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
                 ))
               )}

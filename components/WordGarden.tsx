@@ -4,7 +4,7 @@ import { ArrowLeft, Sprout, Trees, Cloud, Sun } from 'lucide-react';
 
 interface WordGardenProps {
   progress: UserProgress;
-  onBack: () => void;
+  onBack?: () => void;
 }
 
 export const WordGarden: React.FC<WordGardenProps> = ({ progress }) => {

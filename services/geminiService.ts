@@ -1,42 +1,35 @@
-import { GoogleGenAI, Type } from "@google/genai";
-import { DrillQuestion, Lesson, PartType, RemediationPlan, WordPart, PhonicsDissection } from '../types';
+import { DrillQuestion, Lesson, RemediationPlan, WordPart, PhonicsDissection } from '../types';
 import { db } from '../firebase';
 import { doc, getDoc, setDoc, collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 
-const getSystemKeys = (): string[] => {
-  const keys: string[] = [];
-  if (process.env.GEMINI_API_KEY) keys.push(process.env.GEMINI_API_KEY);
-  for (let i = 1; i <= 9; i++) {
-    const k = process.env[`GEMINI_API_KEY_${i}`];
-    if (k) keys.push(k);
+export const GEMINI_MODEL = 'gemini-3.8-flash';
+
+/**
+ * Executes a Gemini prompt via the backend server proxy to comply with AI Studio proxy restrictions
+ * and secure API key management.
+ */
+export const callServerGemini = async (prompt: string, config?: any, customKey?: string): Promise<string> => {
+  const response = await fetch('/api/gemini/generate', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(customKey ? { 'x-custom-api-key': customKey } : {}),
+    },
+    body: JSON.stringify({
+      prompt,
+      config,
+      model: GEMINI_MODEL,
+      customApiKey: customKey,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Server generation error: ${response.status}`);
   }
-  return keys;
-};
 
-const executeWithRotation = async <T>(operation: (ai: GoogleGenAI) => Promise<T>, customKey?: string): Promise<T> => {
-  const keys = customKey ? [customKey, ...getSystemKeys()] : getSystemKeys();
-  if (keys.length === 0) throw new Error("No API keys configured");
-
-  let lastError;
-  for (let i = 0; i < keys.length; i++) {
-    try {
-      const ai = new GoogleGenAI({ apiKey: keys[i] });
-      return await operation(ai);
-    } catch (err: any) {
-      lastError = err;
-      console.warn(`Gemini API call failed with key index ${i}, rotating...`, err);
-      // If it's a custom key and it failed, we might want to still try system keys, so we continue.
-    }
-  }
-  throw lastError;
-};
-
-const getText = (response: any): string => {
-    if (response.text) return response.text;
-    if (response.candidates && response.candidates[0] && response.candidates[0].content && response.candidates[0].content.parts && response.candidates[0].content.parts[0].text) {
-        return response.candidates[0].content.parts[0].text;
-    }
-    return '';
+  const data = await response.json();
+  return data.text || '';
 };
 
 // 1. Generate Lesson Content (Bilingual, Multi-Dissection)
@@ -84,13 +77,7 @@ export const enrichLessonData = async (lessonId: string, root: string, category:
       }
     `;
 
-    const response = await executeWithRotation((ai) => ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
-      config: { responseMimeType: "application/json" }
-    }), customKey);
-
-    const jsonStr = getText(response);
+    const jsonStr = await callServerGemini(prompt, { responseMimeType: "application/json" }, customKey);
     const parsed = JSON.parse(jsonStr);
 
     // Save to Firestore cache
@@ -141,13 +128,7 @@ export const generateDrillQuestions = async (root: string, meaning: string, cust
       }
     `;
 
-    const response = await executeWithRotation((ai) => ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
-      config: { responseMimeType: "application/json" }
-    }), customKey);
-
-    const jsonStr = getText(response);
+    const jsonStr = await callServerGemini(prompt, { responseMimeType: "application/json" }, customKey);
     const parsed = JSON.parse(jsonStr);
     return parsed.questions || [];
   } catch (error) {
@@ -180,13 +161,8 @@ export const verifyUserDerivative = async (root: string, userWord: string, custo
           }
         `;
 
-        const response = await executeWithRotation((ai) => ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: prompt,
-            config: { responseMimeType: "application/json" }
-        }), customKey);
-        
-        return JSON.parse(getText(response));
+        const jsonStr = await callServerGemini(prompt, { responseMimeType: "application/json" }, customKey);
+        return JSON.parse(jsonStr);
     } catch (e) {
         return { isValid: false, analysis: "AI Analysis Failed." };
     }
@@ -206,13 +182,8 @@ export const generateRemediation = async (root: string, missedQuestions: string[
           JSON Output.
         `;
         
-        const response = await executeWithRotation((ai) => ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: prompt,
-            config: { responseMimeType: "application/json" }
-        }), customKey);
-
-        return JSON.parse(getText(response));
+        const jsonStr = await callServerGemini(prompt, { responseMimeType: "application/json" }, customKey);
+        return JSON.parse(jsonStr);
     } catch (e) {
         return { analysis: "Review the definitions again.", reviewPoints: ["Check definitions"] };
     }
@@ -277,33 +248,7 @@ const generateTierAssessment = async (tierId: number, roots: string[], customKey
       }
     `;
 
-    const response = await executeWithRotation((ai) => ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            questions: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  question: { type: Type.STRING },
-                  options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  correctAnswer: { type: Type.STRING },
-                  explanation: { type: Type.STRING }
-                },
-                required: ["question", "options", "correctAnswer", "explanation"]
-              }
-            }
-          }
-        }
-      }
-    }), customKey);
-    
-    const jsonStr = getText(response);
+    const jsonStr = await callServerGemini(prompt, { responseMimeType: "application/json" }, customKey);
     const parsed = JSON.parse(jsonStr);
     return parsed.questions || [];
 
@@ -348,13 +293,8 @@ export const analyzeMorphology = async (word: string, customKey?: string): Promi
           }
         `;
 
-        const response = await executeWithRotation((ai) => ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: prompt,
-            config: { responseMimeType: "application/json" }
-        }), customKey);
-
-        return JSON.parse(getText(response));
+        const jsonStr = await callServerGemini(prompt, { responseMimeType: "application/json" }, customKey);
+        return JSON.parse(jsonStr);
     } catch (e) {
         console.error("Morphology Analysis Error:", e);
         return null;
@@ -375,8 +315,8 @@ export const evaluateAssessment = async (tierId: number, score: number, total: n
           2. If Time Taken is under 30 seconds and score is high, praise their speed.
           3. Format with bolding (**text**) for emphasis.
         `;
-        const response = await executeWithRotation((ai) => ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt }), customKey);
-        return getText(response);
+        const feedback = await callServerGemini(prompt, undefined, customKey);
+        return feedback || "Assessment complete.";
     } catch (e) { return "Assessment complete."; }
 };
 
@@ -418,13 +358,8 @@ export const analyzePhonicsWithAI = async (word: string, customKey?: string): Pr
           }
         `;
 
-        const response = await executeWithRotation((ai) => ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: prompt,
-            config: { responseMimeType: "application/json" }
-        }), customKey);
-
-        return JSON.parse(getText(response));
+        const jsonStr = await callServerGemini(prompt, { responseMimeType: "application/json" }, customKey);
+        return JSON.parse(jsonStr);
     } catch (e) {
         console.error("Phonics AI Analysis Error:", e);
         return null;
